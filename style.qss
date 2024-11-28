@@ -1,4 +1,4 @@
-QPushButton{
+#WebTab{
     background-color: #232A2F;
     border: 0px solid #efefef;
     border-bottom: 2px solid #efefef;
@@ -10,7 +10,7 @@ QPushButton{
     width: 100%;
 }
 
-QPushButton:hover{
+#WebTab:hover{
     background-color: #232A2F;
     border: 1px solid #efefef;
     border-bottom: 3px solid #efefef;
@@ -22,7 +22,7 @@ QPushButton:hover{
     width: 100%;
 }
 
-QPushButton:pressed{
+#WebTab:pressed{
     background-color: #333A3F;
     border: 1px solid #efefef;
     border-bottom: 3px solid #efefef;
