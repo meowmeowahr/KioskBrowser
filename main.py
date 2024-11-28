@@ -1,264 +1,328 @@
-#!/usr/bin/python
-
 """
 KioskBrowser
 
-A Simple Web Browser that can only browse a single website.
-The website is defined in a setings.json file.
+A simple web browser that can only browse a single website.
+The website is defined in a settings.json file.
 You can change the settings by pressing Alt+F1.
-
 """
 
-
-from PyQt5.QtWidgets import *
-from PyQt5.QtCore import *
-from PyQt5.QtGui import *
-from PyQt5.QtWebEngineWidgets import *
-import sys
 import os
+import sys
 import json
-import ctypes
-import favicon
-import requests
-import platform
 import re
+import requests
+import favicon
+from typing import List, Dict, Any
 
+from PySide6.QtWidgets import (
+    QApplication, QWidget, QVBoxLayout, QHBoxLayout,
+    QGridLayout, QPushButton, QLabel, QLineEdit,
+    QCheckBox
+)
+from PySide6.QtCore import QUrl, QSize
+from PySide6.QtGui import QIcon, QKeySequence, QShortcut
+from PySide6.QtWebEngineWidgets import QWebEngineView
 
-SETTINGS = json.load(open(os.path.dirname(os.path.realpath(__file__)) + "/settings.json"))
+VERSION = "dev"
 
-VERSION = "0.6.2"
+class KioskBrowserSettings:
+    """Manages application settings with type hints and validation."""
+    DEFAULT_SETTINGS = {
+        "urls": [["https://example.com", "Example", "@pageicon"]],
+        "windowBranding": "Kiosk Browser",
+        "windowIcon": "@pageicon",
+        "fullscreen": False,
+        "iconSize": 32
+    }
 
-if platform.system() == "Windows" and SETTINGS["useCustomAppString"]:
-    ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("KisokBrowser")
+    @classmethod
+    def load_settings(cls) -> Dict[str, Any]:
+        """Load settings with fallback to default settings."""
+        settings_path = os.path.join(os.path.dirname(__file__), "settings.json")
+        try:
+            with open(settings_path, 'r') as f:
+                settings = json.load(f)
+
+            # Validate and merge with default settings
+            for key, default_value in cls.DEFAULT_SETTINGS.items():
+                if key not in settings:
+                    settings[key] = default_value
+
+            return settings
+        except (FileNotFoundError, json.JSONDecodeError):
+            # Create default settings file if it doesn't exist
+            settings = cls.DEFAULT_SETTINGS.copy()
+            try:
+                with open(settings_path, 'w') as f:
+                    json.dump(settings, f, indent=4)
+            except IOError:
+                print("Warning: Could not create settings file.")
+            return settings
+
+    @classmethod
+    def save_settings(cls, settings: Dict[str, Any]) -> None:
+        """Save settings to file."""
+        settings_path = os.path.join(os.path.dirname(__file__), "settings.json")
+        try:
+            with open(settings_path, 'w') as f:
+                json.dump(settings, f, indent=4)
+        except IOError:
+            print("Error: Could not save settings file.")
 
 class MainWindow(QWidget):
-    def __init__(self):
+    """Main application window for the Kiosk Browser."""
+    def __init__(self, settings: Dict[str, Any]):
         super().__init__()
-        self.initUI()
+        self.settings = settings
+        self._init_ui()
+        self._setup_page_buttons()
+        self._setup_shortcuts()
+        self._apply_styling()
 
-    def initUI(self):
-        self.webEngineView = QWebEngineView(self)
-        self.webEngineView.load(QUrl(SETTINGS["urls"][0][0]))
+    def _init_ui(self):
+        """Initialize the main user interface."""
         self.setObjectName("MainWindow")
 
+        # Main layout
         self.layout = QVBoxLayout()
         self.setLayout(self.layout)
 
+        # Page buttons layout
         self.pages = QHBoxLayout()
         self.layout.addLayout(self.pages)
 
-        # load style.qss
-        with open(os.path.dirname(os.path.realpath(__file__)) + "/style.qss", "r") as f:
-            self.setStyleSheet(f.read())
+        # Web view
+        self.web_engine_view = QWebEngineView(self)
+        self.web_engine_view.load(QUrl(self.settings["urls"][0][0]))
+        self.layout.addWidget(self.web_engine_view)
 
-        # buttons with the pages to switch to
-        for i in range(len(SETTINGS["urls"])):
-            self.pages.addWidget(QPushButton(SETTINGS["urls"][i][1]))
-            self.pages.itemAt(i).widget().clicked.connect(lambda: self.switchPage())
-            if SETTINGS["urls"][i][2] == "@pageicon" and not os.path.exists(os.path.dirname(os.path.realpath(__file__)) + "/iconcache"):
-                os.makedirs(os.path.dirname(os.path.realpath(__file__)) + "/iconcache")
-            
-            if SETTINGS["urls"][i][2] == "@pageicon":
-                try:
-                    filename = SETTINGS["urls"][i][1].replace(" ", "_")
-                    # remove all non-alphanumeric characters
-                    filename = re.sub(r'\W+', '', filename)
-                    if not os.path.exists(os.path.dirname(os.path.realpath(__file__)) + "/iconcache/" + filename + ".png") or os.path.exists(os.path.dirname(os.path.realpath(__file__)) + "/iconcache/" + filename + ".ico"):
-                        print("DEBUG: downloading icon for : " + SETTINGS["urls"][i][0])
-                        # get the favicon of the page
-                        icons = favicon.get(SETTINGS["urls"][i][0])
-                        icon = icons[0]
-                        # save the icon
-                        response = requests.get(icon.url, stream=True)
-                        with open(os.path.dirname(os.path.realpath(__file__)) + "/iconcache/" + filename + "." + icon.format, 'wb') as image:
-                            for chunk in response.iter_content(1024):
-                                image.write(chunk)
-                except:
-                    print("DEBUG: failed to download icon for : " + SETTINGS["urls"][i][0])
+        # Window branding and icon
+        self._set_window_title_and_icon()
 
-            # set the icon of the button
-            # try png
-            filename = SETTINGS["urls"][i][1].replace(" ", "_")
-            # remove all non-alphanumeric characters
-            filename = re.sub(r'\W+', '', filename)
+    def _setup_page_buttons(self):
+        """Create and configure page buttons."""
+        for i, (url, label, icon_path) in enumerate(self.settings["urls"]):
+            # Create button
+            button = QPushButton(label)
+            button.clicked.connect(self._switch_page)
+            self.pages.addWidget(button)
 
-            if os.path.exists(os.path.dirname(os.path.realpath(__file__)) + "/iconcache/" + filename + ".png"):
-                self.pages.itemAt(i).widget().setIcon(QIcon(os.path.dirname(os.path.realpath(__file__)) + "/iconcache/" + filename + ".png"))
-            elif os.path.exists(os.path.dirname(os.path.realpath(__file__)) + "/iconcache/" + filename + ".ico"):
-                self.pages.itemAt(i).widget().setIcon(QIcon(os.path.dirname(os.path.realpath(__file__)) + "/iconcache/" + filename + ".ico"))
-            elif SETTINGS["urls"][i][2] != "@pageicon":
-                self.pages.itemAt(i).widget().setIcon(QIcon(SETTINGS["urls"][i][2]))
+            # Set button icon
+            self._set_button_icon(button, label, icon_path)
+
+            # Set icon size
+            button.setIconSize(QSize(self.settings.get("iconSize", 32),
+                                      self.settings.get("iconSize", 32)))
+
+    def _set_button_icon(self, button: QPushButton, label: str, icon_path: str):
+        """Set icon for a page button."""
+        icon_cache_dir = os.path.join(os.path.dirname(__file__), "iconcache")
+        os.makedirs(icon_cache_dir, exist_ok=True)
+
+        # Sanitize filename
+        filename = re.sub(r'\W+', '', label.replace(" ", "_"))
+
+        # Try to download favicon if @pageicon is specified
+        if icon_path == "@pageicon":
+            try:
+                icons = favicon.get(self.settings["urls"][self.pages.count()-1][0])
+                print(icons)
+                icon = icons[0]
+                icon_file_path = os.path.join(icon_cache_dir, f"{filename}.{icon.format}")
+
+                # Download and save icon
+                response = requests.get(icon.url, stream=True)
+                with open(icon_file_path, 'wb') as image:
+                    for chunk in response.iter_content(1024):
+                        image.write(chunk)
+            except requests.exceptions.ConnectionError as e:
+                print(f"DEBUG: Failed to download icon: {e}")
+                icon_file_path = None
+        else:
+            icon_file_path = icon_path
+
+        # Set button icon
+        if icon_file_path:
+            if os.path.exists(f"{os.path.join(icon_cache_dir, filename)}.png"):
+                button.setIcon(QIcon(f"{os.path.join(icon_cache_dir, filename)}.png"))
+            elif os.path.exists(f"{os.path.join(icon_cache_dir, filename)}.ico"):
+                button.setIcon(QIcon(f"{os.path.join(icon_cache_dir, filename)}.ico"))
+            elif icon_path != "@pageicon":
+                button.setIcon(QIcon(icon_path))
             else:
-                self.pages.itemAt(i).widget().setIcon(QIcon(os.path.dirname(os.path.realpath(__file__)) + "/icon.png"))
+                button.setIcon(QIcon(os.path.join(os.path.dirname(__file__), "icon.png")))
 
-            # set icon size
-            self.pages.itemAt(i).widget().setIconSize(QSize(SETTINGS["iconSize"], SETTINGS["iconSize"]))
-
-
-        self.layout.addWidget(self.webEngineView)
-
-        if SETTINGS["windowBranding"] == "@pagetitle":
-            self.webEngineView.loadFinished.connect(lambda: self.setWindowTitle(self.webEngineView.page().title()))
+    def _set_window_title_and_icon(self):
+        """Set window title and icon based on settings."""
+        if self.settings["windowBranding"] == "@pagetitle":
+            self.web_engine_view.loadFinished.connect(
+                lambda: self.setWindowTitle(self.web_engine_view.page().title())
+            )
         else:
-            self.setWindowTitle(SETTINGS["windowBranding"])
+            self.setWindowTitle(self.settings["windowBranding"])
 
-        if SETTINGS["windowIcon"] == "@pageicon":
-            self.webEngineView.iconChanged.connect(lambda: self.setWindowIcon(self.webEngineView.icon()))
+        if self.settings["windowIcon"] == "@pageicon":
+            self.web_engine_view.iconChanged.connect(
+                lambda: self.setWindowIcon(self.web_engine_view.icon())
+            )
 
+    def _setup_shortcuts(self):
+        """Set up keyboard shortcuts."""
+        self.alt_f1 = QKeySequence("Alt+F1")
+        self.alt_f1_shortcut = QShortcut(self.alt_f1, self)
+        self.alt_f1_shortcut.activated.connect(self._show_settings)
 
-        # create a keyboard shortcut for Alt+F1 and Alt+F3 (F2 is taken by the Raspberry Pi OS Run Prompt)
-        self.altF1 = QShortcut(QKeySequence("Alt+F1"), self)
-        self.altF1.activated.connect(self.showSettings)
+        self.alt_f3 = QKeySequence("Alt+F3")
+        self.alt_f3_shortcut = QShortcut(self.alt_f3, self)
+        self.alt_f3_shortcut.activated.connect(self._show_debug)
 
-        self.altF3 = QShortcut(QKeySequence("Alt+F3"), self)
-        self.altF3.activated.connect(self.showDbg)
+    def _apply_styling(self):
+        """Apply external stylesheet."""
+        style_path = os.path.join(os.path.dirname(__file__), "style.qss")
+        try:
+            with open(style_path, "r") as f:
+                self.setStyleSheet(f.read())
+        except IOError:
+            print("Warning: Could not load stylesheet.")
 
-
-    def showSettings(self):
-        settings.show()
-
-    def showDbg(self):
-        debugwindow.show()
-
-    def switchPage(self):
-        # get the index of the button that was clicked
+    def _switch_page(self):
+        """Switch to the selected page."""
         index = self.pages.indexOf(self.sender())
-        print("DEBUG: switching to page " + str(index))
-        self.webEngineView.load(QUrl(SETTINGS["urls"][index][0]))
+        print(f"DEBUG: switching to page {index}")
+        self.web_engine_view.load(QUrl(self.settings["urls"][index][0]))
 
-class SplashScreen(QMainWindow):
-    # A splash screen that for the app that lasts SETTINGS["splashTime"] seconds
-    def __init__(self):
-        super().__init__()
-        self.initUI()
+    def _show_settings(self):
+        """Show settings window."""
+        settings_window.show()
 
-    def initUI(self):
-        pixmap = QPixmap(os.path.dirname(os.path.realpath(__file__)) + "/splash.svg")
-        self.setWindowFlags(Qt.WindowStaysOnTopHint | Qt.FramelessWindowHint | Qt.Tool)
-        print("DEBUG: Page Loading")
-        self.setFixedSize(pixmap.width(), pixmap.height())
-        img = QLabel()
-        img.setPixmap(pixmap)
-        self.setCentralWidget(img)
-        self.center()
-
-        # show app version at bottom of splash (640x480)
-        self.versionLabel = QLabel(self)
-        self.versionLabel.setText("Version: " + VERSION)
-        # size of version label
-        self.versionLabel.setStyleSheet("font-size: 14px;")
-        self.versionLabel.move(640 - self.versionLabel.width(), 480 - self.versionLabel.height())
-
-        # programed site
-        self.siteLabel = QLabel(self)
-        self.siteLabel.setText("Site: " + SETTINGS["urls"][0][0])
-        self.siteLabel.setMinimumWidth(300)
-        self.siteLabel.setStyleSheet("font-size: 14px;")
-        # move to left of version label
-        self.siteLabel.move(10, 480 - self.siteLabel.height())
-
-        
-        # show for SETTINGS["splashTime"] seconds
-        self.show()
-        QTimer.singleShot(SETTINGS["splashTime"]*1000, self.done)
-
-    def center(self):
-        qr = self.frameGeometry()
-        cp = QDesktopWidget().availableGeometry().center()
-        qr.moveCenter(cp)
-        self.move(qr.topLeft())
-
-    def done(self):
-        print("DEBUG: Window Opened")
-        # open window
-        if SETTINGS["fullscreen"]:
-            window.showFullScreen()
-        else:
-            window.show()
-        # close splash screen
-        self.close()
+    def _show_debug(self):
+        """Show debug window."""
+        debug_window.show()
 
 class SettingsPage(QWidget):
-    def __init__(self):
+    """Settings configuration window."""
+    def __init__(self, settings: Dict[str, Any]):
         super().__init__()
-        self.initUI()
+        self.settings = settings
+        self._init_ui()
 
-    def initUI(self):
+    def _init_ui(self):
+        """Initialize settings UI."""
         self.setWindowTitle("Settings")
 
-        self.windowBrandingLabel = QLabel("Window Branding:")
-        self.windowBrandingLineEdit = QLineEdit()
-        self.windowBrandingLineEdit.setText(SETTINGS["windowBranding"])
-        self.windowBrandingLineEdit.setPlaceholderText("Kiosk Browser")
+        # Window Branding
+        self.window_branding_label = QLabel("Window Branding:")
+        self.window_branding_input = QLineEdit()
+        self.window_branding_input.setText(self.settings["windowBranding"])
+        self.window_branding_input.setPlaceholderText("Kiosk Browser")
 
-        self.windowIconLabel = QLabel("Window Icon:")
-        self.windowIconLineEdit = QLineEdit()
-        self.windowIconLineEdit.setText(SETTINGS["windowIcon"])
-        self.windowIconLineEdit.setPlaceholderText("@pageicon")
+        # Window Icon
+        self.window_icon_label = QLabel("Window Icon:")
+        self.window_icon_input = QLineEdit()
+        self.window_icon_input.setText(self.settings["windowIcon"])
+        self.window_icon_input.setPlaceholderText("@pageicon")
 
-        self.urlLabel = QLabel("URL Config:")
+        # URL Configuration (Placeholder)
+        self.url_label = QLabel("URL Config:")
+        self.url_button = QPushButton("Coming Soon")
+        self.url_button.setEnabled(False)
+        # self.url_button.clicked.connect(self.open_url_config)  # Uncomment when implemented
 
-        self.urlButton = QPushButton("Comming Soon")
-        self.urlButton.setEnabled(False)
-        self.urlButton.clicked.connect(self.openUrlConfig)
+        # Fullscreen Option
+        self.fullscreen_checkbox = QCheckBox("Fullscreen")
+        self.fullscreen_checkbox.setChecked(self.settings["fullscreen"])
 
-        self.fullscreenCheckBox = QCheckBox("Fullscreen")
-        self.fullscreenCheckBox.setChecked(SETTINGS["fullscreen"])
+        # Save Button
+        self.save_button = QPushButton("Save")
+        self.save_button.clicked.connect(self._save_settings)
 
-        self.saveButton = QPushButton("Save")
-        self.saveButton.clicked.connect(self.saveSettings)
-
+        # Layout
         layout = QGridLayout()
-        layout.addWidget(self.urlLabel, 0, 0)
-        layout.addWidget(self.urlButton, 0, 1)
-        layout.addWidget(self.windowBrandingLabel, 1, 0)
-        layout.addWidget(self.windowBrandingLineEdit, 1, 1)
-        layout.addWidget(self.windowIconLabel, 2, 0)
-        layout.addWidget(self.windowIconLineEdit, 2, 1)
-        layout.addWidget(self.fullscreenCheckBox, 3, 0)
-        layout.addWidget(self.saveButton, 4, 0, 1, 2)
+        layout.addWidget(self.url_label, 0, 0)
+        layout.addWidget(self.url_button, 0, 1)
+        layout.addWidget(self.window_branding_label, 1, 0)
+        layout.addWidget(self.window_branding_input, 1, 1)
+        layout.addWidget(self.window_icon_label, 2, 0)
+        layout.addWidget(self.window_icon_input, 2, 1)
+        layout.addWidget(self.fullscreen_checkbox, 3, 0)
+        layout.addWidget(self.save_button, 4, 0, 1, 2)
         self.setLayout(layout)
 
-    def saveSettings(self):
-        SETTINGS["windowBranding"] = self.windowBrandingLineEdit.text()
-        SETTINGS["windowIcon"] = self.windowIconLineEdit.text()
-        SETTINGS["fullscreen"] = self.fullscreenCheckBox.isChecked()
-        json.dump(SETTINGS, open("settings.json", "w"), indent=4)
+    def _save_settings(self):
+        """Save settings from the UI."""
+        self.settings["windowBranding"] = self.window_branding_input.text()
+        self.settings["windowIcon"] = self.window_icon_input.text()
+        self.settings["fullscreen"] = self.fullscreen_checkbox.isChecked()
+
+        KioskBrowserSettings.save_settings(self.settings)
         self.close()
 
-    def openUrlConfig(self):
-        #urlconfig.show()
-        pass
-
-class DebugingWindow(QWidget):
-    def __init__(self):
+class DebugWindow(QWidget):
+    """Debugging control window."""
+    def __init__(self, main_window: MainWindow):
         super().__init__()
-        self.initUI()
+        self.main_window = main_window
+        self._init_ui()
 
-    def initUI(self):
-        # a way to refresh the page, minimize, maximize, and close the window
-        self.setWindowTitle("Debuging Window")
+    def _init_ui(self):
+        """Initialize debugging UI."""
+        self.setWindowTitle("Debugging Window")
 
-        self.layout = QGridLayout()
-        self.setLayout(self.layout)
+        layout = QGridLayout()
+        self.setLayout(layout)
 
-        self.refreshButton = QPushButton("Refresh")
-        self.refreshButton.clicked.connect(lambda: window.webEngineView.reload())
-        self.layout.addWidget(self.refreshButton, 0, 0)
+        # Refresh Button
+        refresh_button = QPushButton("Refresh")
+        refresh_button.clicked.connect(self._refresh_page)
+        layout.addWidget(refresh_button, 0, 0)
 
-        self.minimizeButton = QPushButton("Minimize")
-        self.minimizeButton.clicked.connect(lambda: window.showMinimized())
-        self.layout.addWidget(self.minimizeButton, 0, 1)
+        # Minimize Button
+        minimize_button = QPushButton("Minimize")
+        minimize_button.clicked.connect(self._minimize_window)
+        layout.addWidget(minimize_button, 0, 1)
 
-        self.maximizeButton = QPushButton("Maximize (No FS)")
-        self.maximizeButton.clicked.connect(lambda: window.showMaximized())
-        self.layout.addWidget(self.maximizeButton, 0, 2)
+        # Maximize Button
+        maximize_button = QPushButton("Maximize (No FS)")
+        maximize_button.clicked.connect(self._maximize_window)
+        layout.addWidget(maximize_button, 0, 2)
 
+    def _refresh_page(self):
+        """Refresh the main window's web page."""
+        self.main_window.web_engine_view.reload()
+
+    def _minimize_window(self):
+        """Minimize the main window."""
+        self.main_window.showMinimized()
+
+    def _maximize_window(self):
+        """Maximize the main window."""
+        self.main_window.showMaximized()
+
+def main():
+    """Main application entry point."""
+    app = QApplication(sys.argv)
+
+    # Load settings
+    settings = KioskBrowserSettings.load_settings()
+
+    # Create main window
+    global window
+    window = MainWindow(settings)
+
+    # Create settings and debug windows
+    global settings_window
+    settings_window = SettingsPage(settings)
+
+    global debug_window
+    debug_window = DebugWindow(window)
+
+    # Set fullscreen if enabled
+    if settings.get("fullscreen", False):
+        window.showFullScreen()
+    else:
+        window.show()
+
+    sys.exit(app.exec())
 
 if __name__ == '__main__':
-    app = QApplication(sys.argv)
-    window = MainWindow()
-    splash = SplashScreen()
-    settings = SettingsPage()
-    debugwindow = DebugingWindow()
-    sys.exit(app.exec_())
+    main()
