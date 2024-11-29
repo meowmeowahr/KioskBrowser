@@ -12,6 +12,9 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import QUrl, QSize, Qt, QSettings, QThreadPool, QRunnable
 from PySide6.QtGui import QIcon, QKeySequence, QShortcut, QPixmap, QImage
 from PySide6.QtWebEngineWidgets import QWebEngineView
+from PySide6.QtWebEngineCore import QWebEngineProfile, QWebEnginePage, QWebEngineSettings
+
+from platformdirs import user_cache_dir
 
 VERSION = "dev"
 
@@ -116,6 +119,11 @@ class MainWindow(QMainWindow):
         self.web_stack = QStackedWidget()
         self.main_layout.addWidget(self.web_stack)
 
+        self.shared_profile = QWebEngineProfile("KioskProfile", self)
+        self.shared_profile.setPersistentCookiesPolicy(QWebEngineProfile.PersistentCookiesPolicy.AllowPersistentCookies)
+        logger.info(f"Storage path: {self.shared_profile.persistentStoragePath()}")
+        logger.info(f"Cache path: {self.shared_profile.cachePath()}")
+
         self._setup_pages()
         self._setup_shortcuts()
         self._apply_styling()
@@ -132,10 +140,15 @@ class MainWindow(QMainWindow):
             self.pages_layout.addWidget(button)
             self._set_button_icon(button, label, icon_path)
 
-            # Add a new web page to the stack
+            # Set up the web engine page
             web_page = QWebEngineView()
-            web_page.load(QUrl(url))
+            page = QWebEnginePage(self.shared_profile, web_page)
+            web_page.setPage(page)
+            page.load(QUrl(url))
+
+            # Add to the widget stack
             self.web_stack.addWidget(web_page)
+            self.web_stack.show()
 
     def _set_button_icon(self, button: QPushButton, label: str, icon_path: str):
         if icon_path == "@pageicon":
