@@ -1,6 +1,5 @@
 from loguru import logger
 import sys
-import re
 import requests
 import favicon
 from typing import Dict, Any
@@ -14,7 +13,7 @@ from PySide6.QtCore import QUrl, QSize, Qt, QSettings, QThreadPool, QRunnable
 from PySide6.QtGui import QIcon, QKeySequence, QShortcut, QPixmap, QImage
 from PySide6.QtWebEngineWidgets import QWebEngineView
 
-logger.add("kiosk_browser.log", format="{time} {level} {message}", level="DEBUG")
+import qt_material as qtm
 
 VERSION = "dev"
 
@@ -57,7 +56,6 @@ class IconFetchWorker(QRunnable):
             icons = favicon.get(self.url)
             if icons:
                 icon = icons[0]
-                print(icons)
                 response = requests.get(icon.url, stream=True)
                 if response.status_code == 200:
                     # Pass the icon data back to the callback
@@ -71,19 +69,23 @@ class IconFetchWorker(QRunnable):
 
 
 class MainWindow(QMainWindow):
-    def __init__(self, settings: Dict[str, Any]):
+    def __init__(self):
         super().__init__()
-        self.settings = settings
-        self.settings_pane = SettingsPage(settings)
+        self.settings = KioskBrowserSettings.load_settings()
+
+        self.setObjectName("MainWindow")
+        self.setWindowTitle(self.settings["windowBranding"])
+        self.setWindowIcon(QIcon("icon.png"))
+
+        if self.settings.get("fullscreen", False):
+            self.showFullScreen()
+        else:
+            self.show()
+
+        self.settings_pane = SettingsPage()
 
         self.thread_pool = QThreadPool()
 
-        self.setObjectName("MainWindow")
-
-        self._init_ui()
-
-    def _init_ui(self):
-        self.setWindowTitle(self.settings["windowBranding"])
         self.root_stack = QStackedWidget()
         self.setCentralWidget(self.root_stack)
 
@@ -107,27 +109,26 @@ class MainWindow(QMainWindow):
 
         self.root_stack.addWidget(self.settings_widget)
 
-        self.main_layout = QVBoxLayout(self)
+        self.main_layout = QVBoxLayout()
         self.main_widget.setLayout(self.main_layout)
 
         self.pages_layout = QHBoxLayout()
         self.main_layout.addLayout(self.pages_layout)
 
-        self.web_stack = QStackedWidget(self)
+        self.web_stack = QStackedWidget()
         self.main_layout.addWidget(self.web_stack)
 
         self._setup_pages()
         self._setup_shortcuts()
         self._apply_styling()
 
-        self.setWindowIcon(QIcon("icon.png"))
 
     def _setup_pages(self):
         for index, (url, label, icon_path) in enumerate(self.settings["urls"]):
             button = QPushButton()
             button.clicked.connect(lambda _, idx=index: self._switch_page(idx))
             button.setText(label)
-            button.setIconSize(QSize(24, 24))
+            button.setIconSize(QSize(16, 16))
             button.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
             button.setObjectName("WebTab")
             self.pages_layout.addWidget(button)
@@ -176,13 +177,10 @@ class MainWindow(QMainWindow):
         self.root_stack.setCurrentIndex(1)
 
 class SettingsPage(QWidget):
-    """Settings configuration window."""
-    def __init__(self, settings: Dict[str, Any]):
+    def __init__(self):
         super().__init__()
-        self.settings = settings
-        self._init_ui()
+        self.settings = KioskBrowserSettings.load_settings()
 
-    def _init_ui(self):
         self.setWindowTitle("Settings")
 
         # URL Configuration Section
@@ -210,7 +208,8 @@ class SettingsPage(QWidget):
         self.save_button.clicked.connect(self._save_settings)
 
         # Layout
-        layout = QVBoxLayout()
+        layout = QVBoxLayout(self)
+
         url_layout = QHBoxLayout()
         url_layout.addWidget(self.add_url_button)
         url_layout.addWidget(self.remove_url_button)
@@ -229,6 +228,7 @@ class SettingsPage(QWidget):
         for url, label, icon in self.settings["urls"]:
             row = self.url_table.rowCount()
             self.url_table.insertRow(row)
+            self.url_table.setRowHeight(row, 48)
             self.url_table.setItem(row, 0, QTableWidgetItem(url))
             self.url_table.setItem(row, 1, QTableWidgetItem(label))
             self.url_table.setItem(row, 2, QTableWidgetItem(icon))
@@ -296,24 +296,17 @@ class URLConfigDialog(QDialog):
         layout.addWidget(self.cancel_button, 3, 1)
         self.setLayout(layout)
 
+        self._apply_styling()
+
+    def _apply_styling(self):
+        with open("style.qss", "r", encoding="utf-8") as f:
+            self.setStyleSheet(f.read())
+
     def get_data(self):
         """Retrieve the entered data."""
         return self.url_input.text(), self.label_input.text(), self.icon_input.text()
 
-
-# Integrate the dialog into the main application workflow
-def main():
-    app = QApplication(sys.argv)
-    settings = KioskBrowserSettings.load_settings()
-    window = MainWindow(settings)
-
-    if settings.get("fullscreen", False):
-        window.showFullScreen()
-    else:
-        window.show()
-
-    sys.exit(app.exec())
-
-
 if __name__ == "__main__":
-    main()
+    app = QApplication(sys.argv)
+    MainWindow()
+    sys.exit(app.exec())
