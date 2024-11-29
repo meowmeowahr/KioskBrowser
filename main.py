@@ -13,8 +13,6 @@ from PySide6.QtCore import QUrl, QSize, Qt, QSettings, QThreadPool, QRunnable
 from PySide6.QtGui import QIcon, QKeySequence, QShortcut, QPixmap, QImage
 from PySide6.QtWebEngineWidgets import QWebEngineView
 
-import qt_material as qtm
-
 VERSION = "dev"
 
 class KioskBrowserSettings:
