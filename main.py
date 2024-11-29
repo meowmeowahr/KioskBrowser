@@ -78,6 +78,8 @@ class MainWindow(QMainWindow):
 
         self.thread_pool = QThreadPool()
 
+        self.setObjectName("MainWindow")
+
         self._init_ui()
 
     def _init_ui(self):
@@ -125,7 +127,7 @@ class MainWindow(QMainWindow):
             button = QPushButton()
             button.clicked.connect(lambda _, idx=index: self._switch_page(idx))
             button.setText(label)
-            button.setIconSize(QSize(32, 32))
+            button.setIconSize(QSize(24, 24))
             button.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
             button.setObjectName("WebTab")
             self.pages_layout.addWidget(button)
@@ -220,7 +222,6 @@ class SettingsPage(QWidget):
         layout.addWidget(self.window_branding_input)
         layout.addWidget(self.fullscreen_checkbox)
         layout.addWidget(self.save_button)
-        self.setLayout(layout)
 
     def _populate_url_table(self):
         """Populate the URL table with current settings."""

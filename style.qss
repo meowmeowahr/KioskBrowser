@@ -34,7 +34,7 @@
     width: 100%;
 }
 
-#MainWindow{
+#MainWindow > QWidget{
     background-color: #121212;
     color: #fff;
 }
