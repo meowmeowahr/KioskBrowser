@@ -4,27 +4,48 @@ from loguru import logger
 import sys
 import requests
 import favicon
-import datetime
-from typing import Dict, Any
-
-from psutil import sensors_battery, cpu_percent
 
 from PySide6.QtWidgets import (
-    QApplication, QWidget, QVBoxLayout, QHBoxLayout, QGridLayout,
-    QPushButton, QLabel, QLineEdit, QCheckBox, QStackedWidget, QSizePolicy, QTableWidget, QHeaderView, QTableWidgetItem,
-    QDialog, QMainWindow, QAbstractItemView, QFileDialog, QGroupBox, QSpinBox
+    QApplication,
+    QWidget,
+    QVBoxLayout,
+    QHBoxLayout,
+    QPushButton,
+    QLabel,
+    QStackedWidget,
+    QSizePolicy,
+    QMainWindow,
 )
-from PySide6.QtCore import QUrl, QSize, Qt, QSettings, QThreadPool, QRunnable, Signal, QTimer
-from PySide6.QtGui import QIcon, QKeySequence, QShortcut, QPixmap, QImage, QPalette, QColor
+from PySide6.QtCore import (
+    QUrl,
+    QSize,
+    Qt,
+    QThreadPool,
+    QRunnable,
+    QTimer,
+)
+from PySide6.QtGui import (
+    QIcon,
+    QKeySequence,
+    QShortcut,
+    QPixmap,
+    QImage,
+    QPalette,
+    QColor,
+)
 from PySide6.QtWebEngineWidgets import QWebEngineView
 from PySide6.QtWebEngineCore import QWebEngineProfile, QWebEnginePage
 
-from qtawesome import icon as qtaicon
+from qtawesome import icon as qta_icon
+
+from topbar import TopBarIconItem, get_battery, get_time_string, get_cpu
+from settings import KioskBrowserSettings, SettingsPage
 
 VERSION = "1.0.0"
 
+
 def resource_path(relative_path) -> str | bytes:
-    """ Get absolute path to resource, works for dev and PyInstaller """
+    """Get absolute path to resource, works for dev and PyInstaller"""
     try:
         # PyInstaller creates a temp folder and stores files there
         # noinspection PyUnresolvedReferences
@@ -34,77 +55,6 @@ def resource_path(relative_path) -> str | bytes:
         base_path = os.path.abspath(".")
 
     return os.path.join(base_path, relative_path)
-
-
-def get_time_string(twelve: bool = True):
-    dt = datetime.datetime.now()
-    return dt.strftime("%I:%M %p") if twelve else dt.strftime("%H:%M")
-
-def get_battery():
-    battery = sensors_battery()
-    if not battery:
-        return qtaicon("mdi6.battery-off"), "??%"
-
-    percent = round(battery.percent)
-    charging = battery.power_plugged
-
-    if percent > 90:
-        icon = qtaicon(f"mdi6.battery{'-charging' if charging else ''}", color="#4CAF50" if charging else "#FFFFFF")
-    elif percent > 80:
-        icon = qtaicon(f"mdi6.battery{'-charging' if charging else ''}-90", color="#4CAF50" if charging else "#FFFFFF")
-    elif percent > 70:
-        icon = qtaicon(f"mdi6.battery{'-charging' if charging else ''}-80", color="#4CAF50" if charging else "#FFFFFF")
-    elif percent > 60:
-        icon = qtaicon(f"mdi6.battery{'-charging' if charging else ''}-70", color="#4CAF50" if charging else "#FFFFFF")
-    elif percent > 50:
-        icon = qtaicon(f"mdi6.battery{'-charging' if charging else ''}-60", color="#4CAF50" if charging else "#FFFFFF")
-    elif percent > 40:
-        icon = qtaicon(f"mdi6.battery{'-charging' if charging else ''}-50", color="#4CAF50" if charging else "#FFFFFF")
-    elif percent > 30:
-        icon = qtaicon(f"mdi6.battery{'-charging' if charging else ''}-40", color="#4CAF50" if charging else "#FFFFFF")
-    elif percent > 20:
-        icon = qtaicon(f"mdi6.battery{'-charging' if charging else ''}-30", color="#4CAF50" if charging else "#FFFFFF")
-    elif percent > 10 and not charging:
-        icon = qtaicon("mdi6.battery-20", color="#F44336")
-    elif percent > 10 and charging:
-        icon = qtaicon("mdi6.battery-charging-20", color="#4CAF50")
-    else:
-        icon = qtaicon("mdi6.battery-alert", color="#F44336")
-
-    return icon, f"{percent}%"
-
-def get_cpu():
-    return qtaicon("mdi6.cpu-64-bit" if sys.maxsize > 2**32 else "mdi6.cpu-32-bit"), f"{round(cpu_percent())}%"
-
-class KioskBrowserSettings:
-    """Manages the settings using QSettings."""
-    DEFAULT_SETTINGS = {
-        "urls": [],
-        "windowBranding": "Kiosk Browser",
-        "fullscreen": True,
-        "topbar": True,
-        "topbar_12hr": True,
-        "topbar_battery": False,
-        "topbar_cpu": False,
-        "topbar_update_speed": 1000,
-    }
-
-    @classmethod
-    def load_settings(cls) -> Dict[str, Any]:
-        """Loads settings using QSettings and applies defaults for missing keys."""
-        settings = QSettings("meowmeowahr", "KioskBrowser")
-        loaded_settings = {key: settings.value(key, default, type=type(default)) for key, default in
-                           cls.DEFAULT_SETTINGS.items()}
-        logger.debug("Settings loaded: {}", loaded_settings)
-        return loaded_settings
-
-    @classmethod
-    def save_settings(cls, settings: Dict[str, Any]) -> None:
-        """Saves the given settings using QSettings."""
-        qsettings = QSettings("meowmeowahr", "KioskBrowser")
-        for key, value in settings.items():
-            qsettings.setValue(key, value)
-        logger.info("Settings saved: {}", settings)
 
 
 class IconFetchWorker(QRunnable):
@@ -123,64 +73,19 @@ class IconFetchWorker(QRunnable):
                 response = requests.get(icons[0].url, stream=True)
                 if response.status_code == 200:
                     # Pass the icon data back to the callback
-                    self.callback(QIcon(QPixmap(QImage.fromData(response.content)).scaled(32, 32,
-                                                                                          mode=Qt.TransformationMode.SmoothTransformation)))
+                    self.callback(
+                        QIcon(
+                            QPixmap(QImage.fromData(response.content)).scaled(
+                                32, 32, mode=Qt.TransformationMode.SmoothTransformation
+                            )
+                        )
+                    )
                     return
         except Exception as e:
             logger.warning(f"Failed to fetch page icon for {self.url}: {e}")
 
         # If we fail to fetch the icon, call the callback with None
         self.callback(None)
-
-
-class TopBarIconItem(QWidget):
-    IconSize = (20, 20)
-    def __init__(self, ico: QIcon, text: str = "", final_stretch=True):
-        super().__init__()
-
-        layout = QHBoxLayout()
-        layout.setContentsMargins(0, 0, 0, 0)
-        self.setLayout(layout)
-
-        self.icon = QLabel()
-        self.icon.setPixmap(ico.pixmap(*self.IconSize))
-
-        self.text = QLabel(text)
-
-        layout.addWidget(self.icon)
-        layout.addWidget(self.text)
-
-    def modify(self, ico: QIcon, text: str):
-        self.icon.setPixmap(ico.pixmap(*self.IconSize))
-        self.text.setText(text)
-
-
-class LabeledSpinBox(QWidget):
-    def __init__(self, label_text: str, parent=None):
-        super().__init__(parent)
-
-        layout = QVBoxLayout(self)
-
-        # Create label and spin box
-        self.label = QLabel(label_text)
-        self.spin_box = QSpinBox()
-
-        # Add widgets to the layout
-        layout.addWidget(self.label)
-        layout.addWidget(self.spin_box)
-
-        # Set the layout to the widget
-        self.setLayout(layout)
-
-        self.setValue = self.spin_box.setValue
-        self.setRange = self.spin_box.setRange
-        self.setSingleStep = self.spin_box.setSingleStep
-        self.setSuffix = self.spin_box.setSuffix
-        self.setPrefix = self.spin_box.setPrefix
-
-    def set_text(self, text: str):
-        """Set the text of the label."""
-        self.label.setText(text)
 
 
 class MainWindow(QMainWindow):
@@ -221,18 +126,22 @@ class MainWindow(QMainWindow):
         self.top_bar_cpu.setObjectName("CpuWidget")
         self.top_bar_cpu.setVisible(self.settings.get("topbar_cpu", False))
         self.top_bar_layout.addWidget(self.top_bar_cpu)
-        
+
         self.top_bar_battery = TopBarIconItem(*get_battery())
         self.top_bar_battery.setObjectName("BatteryWidget")
         self.top_bar_battery.setVisible(self.settings.get("topbar_battery", False))
         self.top_bar_layout.addWidget(self.top_bar_battery)
 
-        self.top_bar_clock = QLabel(get_time_string(self.settings.get("topbar_12hr", True)))
+        self.top_bar_clock = QLabel(
+            get_time_string(self.settings.get("topbar_12hr", True))
+        )
         self.top_bar_clock.setObjectName("ClockWidget")
         self.top_bar_layout.addWidget(self.top_bar_clock)
 
         self.pages_layout = QHBoxLayout()
-        self.pages_layout.setContentsMargins(3, 0 if self.settings.get("topbar", True) else 3, 3, 0)
+        self.pages_layout.setContentsMargins(
+            3, 0 if self.settings.get("topbar", True) else 3, 3, 0
+        )
         self.main_layout.addLayout(self.pages_layout)
 
         self.web_stack = QStackedWidget()
@@ -248,7 +157,7 @@ class MainWindow(QMainWindow):
 
         self.settings_back = QPushButton("Back")
         self.settings_back.clicked.connect(self.exit_settings)
-        self.settings_back.setIcon(qtaicon("mdi6.arrow-left"))
+        self.settings_back.setIcon(qta_icon("mdi6.arrow-left"))
         self.settings_back.setIconSize(QSize(22, 22))
         self.settings_top_bar.addWidget(self.settings_back)
 
@@ -258,7 +167,7 @@ class MainWindow(QMainWindow):
         self.settings_top_bar.addWidget(self.settings_top_bar_version)
 
         # Create settings page with callback to rebuild pages
-        self.settings_pane = SettingsPage()
+        self.settings_pane = SettingsPage(self)
         self.settings_pane.rebuild.connect(self._rebuild_pages)
         self.settings_layout.addWidget(self.settings_pane)
 
@@ -266,7 +175,9 @@ class MainWindow(QMainWindow):
 
         # Shared profile for web pages
         self.shared_profile = QWebEngineProfile("KioskProfile", self)
-        self.shared_profile.setPersistentCookiesPolicy(QWebEngineProfile.PersistentCookiesPolicy.AllowPersistentCookies)
+        self.shared_profile.setPersistentCookiesPolicy(
+            QWebEngineProfile.PersistentCookiesPolicy.AllowPersistentCookies
+        )
         logger.info(f"Storage path: {self.shared_profile.persistentStoragePath()}")
         logger.info(f"Cache path: {self.shared_profile.cachePath()}")
 
@@ -284,7 +195,9 @@ class MainWindow(QMainWindow):
         self.clock_timer.start()
 
     def topbar_update(self):
-        self.top_bar_clock.setText(get_time_string(self.settings.get("topbar_12hr", True)))
+        self.top_bar_clock.setText(
+            get_time_string(self.settings.get("topbar_12hr", True))
+        )
         self.top_bar_battery.modify(*get_battery())
         self.top_bar_cpu.modify(*get_cpu())
 
@@ -316,7 +229,9 @@ class MainWindow(QMainWindow):
             button = QPushButton()
             button.clicked.connect(lambda: self._switch_page(0))
             button.setText("KioskBrowser")
-            button.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
+            button.setSizePolicy(
+                QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred
+            )
             button.setFocusPolicy(Qt.FocusPolicy.TabFocus)
             button.setObjectName("WebTab")
             self.pages_layout.addWidget(button)
@@ -325,11 +240,17 @@ class MainWindow(QMainWindow):
             no_page_layout = QVBoxLayout(no_page_widget)
 
             no_page_icon = QLabel()
-            no_page_icon.setPixmap(QPixmap(resource_path("icon.png")).scaled(512, 512, mode=Qt.TransformationMode.SmoothTransformation))
+            no_page_icon.setPixmap(
+                QPixmap(resource_path("icon.png")).scaled(
+                    512, 512, mode=Qt.TransformationMode.SmoothTransformation
+                )
+            )
             no_page_icon.setAlignment(Qt.AlignmentFlag.AlignCenter)
             no_page_layout.addWidget(no_page_icon)
 
-            no_page_text = QLabel("Welcome to KioskBrowser\nUse Shift+F1 to open settings and add pages")
+            no_page_text = QLabel(
+                "Welcome to KioskBrowser\nUse Shift+F1 to open settings and add pages"
+            )
             no_page_text.setObjectName("NoPagesText")
             no_page_text.setAlignment(Qt.AlignmentFlag.AlignCenter)
             no_page_layout.addWidget(no_page_text)
@@ -342,8 +263,10 @@ class MainWindow(QMainWindow):
             button.clicked.connect(lambda _, idx=index: self._switch_page(idx))
             button.setText(label)
             button.setIconSize(QSize(16, 16))
-            button.setIcon(qtaicon("mdi6.web"))
-            button.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
+            button.setIcon(qta_icon("mdi6.web"))
+            button.setSizePolicy(
+                QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred
+            )
             button.setFocusPolicy(Qt.FocusPolicy.TabFocus)
             button.setObjectName("WebTab")
             self.pages_layout.addWidget(button)
@@ -370,7 +293,9 @@ class MainWindow(QMainWindow):
         self.top_bar_widget.setVisible(self.settings.get("topbar", True))
         self.top_bar_battery.setVisible(self.settings.get("topbar_battery", False))
         self.top_bar_cpu.setVisible(self.settings.get("topbar_cpu", False))
-        self.pages_layout.setContentsMargins(3, 0 if self.settings.get("topbar", True) else 3, 3, 0)
+        self.pages_layout.setContentsMargins(
+            3, 0 if self.settings.get("topbar", True) else 3, 3, 0
+        )
         self._setup_pages()
 
     def _set_button_icon(self, button: QPushButton, label: str, icon_path: str):
@@ -382,7 +307,7 @@ class MainWindow(QMainWindow):
             # Use a local icon directly
             button.setIcon(QIcon(icon_path))
         else:
-            button.setIcon(qtaicon("mdi6.web"))
+            button.setIcon(qta_icon("mdi6.web"))
 
     def _fetch_icon_async(self, button: QPushButton, label: str, url: str):
         def update_button_icon(ico: QIcon):
@@ -392,7 +317,7 @@ class MainWindow(QMainWindow):
                 logger.info(f"Fetched page icon for {label}")
             else:
                 logger.warning(f"No icon available for {label}")
-                button.setIcon(qtaicon("mdi6.web"))
+                button.setIcon(qta_icon("mdi6.web"))
 
         # Start the worker to fetch the icon
         worker = IconFetchWorker(url, update_button_icon)
@@ -419,277 +344,13 @@ class MainWindow(QMainWindow):
                 self.showFullScreen()
 
 
-class SettingsPage(QWidget):
-    rebuild = Signal()
-
-    def __init__(self):
-        super().__init__()
-        self.settings = KioskBrowserSettings.load_settings()
-
-        self.setWindowTitle("Settings")
-
-        # URL Configuration Section
-        self.url_label = QLabel("URL Config:")
-        self.url_table = QTableWidget(0, 3)  # 3 columns: URL, Label, Icon
-        self.url_table.setHorizontalHeaderLabels(["URL", "Label", "Icon"])
-        self.url_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
-        self.url_table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectItems)
-        self.url_table.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
-        self._populate_url_table()
-
-        self.add_url_button = QPushButton("Add URL")
-        self.add_url_button.setIcon(qtaicon("mdi6.plus"))
-        self.add_url_button.setIconSize(QSize(22, 22))
-        self.add_url_button.clicked.connect(self._add_url)
-
-        self.remove_url_button = QPushButton("Remove Selected")
-        self.remove_url_button.setIcon(qtaicon("mdi6.delete"))
-        self.remove_url_button.setIconSize(QSize(22, 22))
-        self.remove_url_button.clicked.connect(self._remove_selected_urls)
-
-        self.move_up_button = QPushButton("Move Up")
-        self.move_up_button.setIcon(qtaicon("mdi6.triangle"))
-        self.move_up_button.setIconSize(QSize(22, 22))
-        self.move_up_button.clicked.connect(self._move_up)
-
-        self.move_down_button = QPushButton("Move Down")
-        self.move_down_button.setIcon(qtaicon("mdi6.triangle-down"))
-        self.move_down_button.setIconSize(QSize(22, 22))
-        self.move_down_button.clicked.connect(self._move_down)
-
-        # Other Settings
-        self.window_branding_label = QLabel("Window Branding:")
-        self.window_branding_input = QLineEdit(self.settings.get("windowBranding", "Kiosk Browser"))
-
-        self.fullscreen_checkbox = QCheckBox("Fullscreen")
-        self.fullscreen_checkbox.setChecked(self.settings.get("fullscreen", True))
-
-        self.topbar_group = QGroupBox("Top Bar")
-        self.topbar_group.setCheckable(True)
-        self.topbar_group.setChecked(self.settings.get("topbar", True))
-
-        self.topbar_layout = QGridLayout()
-        self.topbar_group.setLayout(self.topbar_layout)
-
-        self.topbar_12hr = QCheckBox("12-Hour Clock")
-        self.topbar_12hr.setChecked(self.settings.get("topbar_12hr", True))
-        self.topbar_layout.addWidget(self.topbar_12hr, 0, 0)
-
-        self.topbar_battery = QCheckBox("Laptop Battery")
-        self.topbar_battery.setChecked(self.settings.get("topbar_battery", False))
-        self.topbar_layout.addWidget(self.topbar_battery, 1, 0)
-
-        self.topbar_cpu = QCheckBox("CPU Usage")
-        self.topbar_cpu.setChecked(self.settings.get("topbar_cpu", False))
-        self.topbar_layout.addWidget(self.topbar_cpu, 2, 0)
-        
-        self.topbar_update = LabeledSpinBox("Top Bar Update Speed")
-        self.topbar_update.setRange(500, 10000)
-        self.topbar_update.setSingleStep(500)
-        self.topbar_update.setSuffix("ms")
-        self.topbar_update.spin_box.setMaximumWidth(240)
-        self.topbar_update.setValue(self.settings.get("topbar_update_speed", 1000))
-        self.topbar_layout.addWidget(self.topbar_update, 0, 1)
-
-        # Save Button
-        self.save_button = QPushButton("Save")
-        self.save_button.setIcon(qtaicon("mdi6.content-save-cog"))
-        self.save_button.setIconSize(QSize(22, 22))
-        self.save_button.clicked.connect(self.save)
-
-        # Layout
-        layout = QVBoxLayout(self)
-
-        url_layout = QHBoxLayout()
-        url_layout.addWidget(self.add_url_button)
-        url_layout.addWidget(self.remove_url_button)
-        url_layout.addWidget(self.move_up_button)
-        url_layout.addWidget(self.move_down_button)
-
-        layout.addWidget(self.url_label)
-        layout.addWidget(self.url_table)
-        layout.addLayout(url_layout)
-        layout.addWidget(self.window_branding_label)
-        layout.addWidget(self.window_branding_input)
-        layout.addWidget(self.fullscreen_checkbox)
-        layout.addWidget(self.topbar_group)
-        layout.addWidget(self.save_button)
-
-    def _populate_url_table(self):
-        """Populate the URL table with current settings."""
-        self.url_table.setRowCount(0)
-        for url, label, icon in self.settings["urls"]:
-            row = self.url_table.rowCount()
-            self.url_table.insertRow(row)
-            self.url_table.setRowHeight(row, 48)
-            self.url_table.verticalHeader().setSectionResizeMode(row, QHeaderView.ResizeMode.Fixed)
-            self.url_table.setItem(row, 0, QTableWidgetItem(url))
-            self.url_table.setItem(row, 1, QTableWidgetItem(label))
-            self.url_table.setItem(row, 2, QTableWidgetItem(icon))
-
-    def _add_url(self):
-        """Add a new URL entry."""
-        dialog = URLConfigDialog(win)
-        if dialog.exec():
-            url, label, icon = dialog.get_data()
-            row = self.url_table.rowCount()
-            self.url_table.insertRow(row)
-            self.url_table.setRowHeight(row, 48)
-            self.url_table.verticalHeader().setSectionResizeMode(row, QHeaderView.ResizeMode.Fixed)
-            self.url_table.setItem(row, 0, QTableWidgetItem(url))
-            self.url_table.setItem(row, 1, QTableWidgetItem(label))
-            self.url_table.setItem(row, 2, QTableWidgetItem(icon))
-
-    def _remove_selected_urls(self):
-        """Remove selected URLs from the table."""
-        selected_rows = set(item.row() for item in self.url_table.selectedItems())
-        for row in sorted(selected_rows, reverse=True):
-            self.url_table.removeRow(row)
-
-    def _move_up(self):
-        """Move the selected row up."""
-        current_row = self.url_table.currentRow()
-
-        if current_row == -1:
-            return
-
-        if current_row > 0:
-            self._swap_rows(current_row, current_row - 1)
-            self.url_table.selectRow(current_row - 1)
-
-    def _move_down(self):
-        """Move the selected row down."""
-        current_row = self.url_table.currentRow()
-
-        if current_row == -1:
-            return
-
-        if current_row < self.url_table.rowCount() - 1:
-            self._swap_rows(current_row, current_row + 1)
-            self.url_table.selectRow(current_row + 1)
-
-    def _swap_rows(self, row1, row2):
-        """Swap two rows in the table."""
-        for col in range(self.url_table.columnCount()):
-            item1 = self.url_table.takeItem(row1, col)
-            item2 = self.url_table.takeItem(row2, col)
-            self.url_table.setItem(row1, col, item2)
-            self.url_table.setItem(row2, col, item1)
-
-    def save(self):
-        """Save all settings, including the updated URL list."""
-        # Update URL list
-        urls = []
-        for row in range(self.url_table.rowCount()):
-            url = self.url_table.item(row, 0).text()
-            label = self.url_table.item(row, 1).text()
-            icon = self.url_table.item(row, 2).text()
-            urls.append([url, label, icon])
-        self.settings["urls"] = urls
-
-        # Update other settings
-        self.settings["windowBranding"] = self.window_branding_input.text()
-        self.settings["fullscreen"] = self.fullscreen_checkbox.isChecked()
-        self.settings["topbar"] = self.topbar_group.isChecked()
-        self.settings["topbar_12hr"] = self.topbar_12hr.isChecked()
-        self.settings["topbar_battery"] = self.topbar_battery.isChecked()
-        self.settings["topbar_cpu"] = self.topbar_cpu.isChecked()
-        self.settings["topbar_update_speed"] = self.topbar_update.spin_box.value()
-
-        # Save settings
-        KioskBrowserSettings.save_settings(self.settings)
-
-        # Trigger page rebuild if callback is set
-        self.rebuild.emit()
-
-class URLConfigDialog(QDialog):
-    """Dialog for adding or editing a URL entry."""
-
-    def __init__(self, parent=None, url="", label="", icon=""):
-        super().__init__(parent=parent)
-        self.setWindowTitle("URL Configuration")
-
-        # Inputs for URL and Label
-        self.url_input = QLineEdit(url)
-        self.label_input = QLineEdit(label)
-
-        self.icon_group = QGroupBox("Icon Settings")
-
-        self.use_favicon_checkbox = QCheckBox("Use Webpage Favicon")
-        self.use_favicon_checkbox.setChecked(True)
-
-        self.icon_input = QLineEdit(icon)
-        self.icon_input.setEnabled(False)
-
-        self.icon_button = QPushButton("Select Icon")
-        self.icon_button.setEnabled(False)
-
-        self.use_favicon_checkbox.toggled.connect(self.toggle_icon_settings)
-        self.icon_button.clicked.connect(self.select_icon)
-
-        icon_layout = QHBoxLayout()
-        icon_layout.addWidget(self.icon_input)
-        icon_layout.addWidget(self.icon_button)
-
-        group_layout = QVBoxLayout()
-        group_layout.addWidget(self.use_favicon_checkbox)
-        group_layout.addLayout(icon_layout)
-        self.icon_group.setLayout(group_layout)
-
-        # OK and Cancel buttons
-        self.ok_button = QPushButton("OK")
-        self.ok_button.clicked.connect(self.accept)
-        self.cancel_button = QPushButton("Cancel")
-        self.cancel_button.clicked.connect(self.reject)
-
-        # Layout setup
-        layout = QGridLayout()
-        layout.addWidget(QLabel("URL:"), 0, 0)
-        layout.addWidget(self.url_input, 0, 1)
-        layout.addWidget(QLabel("Label:"), 1, 0)
-        layout.addWidget(self.label_input, 1, 1)
-        layout.addWidget(self.icon_group, 2, 0, 1, 2)
-        layout.addWidget(self.ok_button, 3, 0)
-        layout.addWidget(self.cancel_button, 3, 1)
-        self.setLayout(layout)
-
-        self._apply_styling()
-
-    def _apply_styling(self):
-        try:
-            with open("style.qss", "r", encoding="utf-8") as f:
-                self.setStyleSheet(f.read())
-        except FileNotFoundError:
-            pass  # If style.qss is not found, skip applying styling
-
-    def toggle_icon_settings(self, checked):
-        """Enable or disable icon input and button based on the checkbox state."""
-        self.icon_input.setEnabled(not checked)
-        self.icon_button.setEnabled(not checked)
-
-    def select_icon(self):
-        """Open a file dialog to select an icon."""
-        icon_path, _ = QFileDialog.getOpenFileName(
-            self, "Select Icon", "",
-            "Image Files (*.svg *.png *.jpg *.jpeg *.bmp *.xbm)"
-        )
-        if icon_path:
-            self.icon_input.setText(icon_path)
-
-    def get_data(self):
-        """Retrieve the entered data."""
-        if self.use_favicon_checkbox.isChecked():
-            self.icon_input.setText("@pageicon")
-
-        return self.url_input.text(), self.label_input.text(), self.icon_input.text()
-
 if __name__ == "__main__":
     app = QApplication(sys.argv)
 
     palette = QPalette()
     palette.setColor(QPalette.ColorRole.Text, QColor(255, 255, 255))
     app.setPalette(palette)
-    app.setStyle('Fusion')
+    app.setStyle("Fusion")
 
     win = MainWindow()
     sys.exit(app.exec())
