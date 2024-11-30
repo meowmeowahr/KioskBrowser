@@ -10,7 +10,7 @@ from typing import Dict, Any
 from PySide6.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QHBoxLayout, QGridLayout,
     QPushButton, QLabel, QLineEdit, QCheckBox, QStackedWidget, QSizePolicy, QTableWidget, QHeaderView, QTableWidgetItem,
-    QDialog, QMainWindow, QAbstractItemView, QFileDialog, QGroupBox
+    QDialog, QMainWindow, QAbstractItemView, QFileDialog, QGroupBox, QSpinBox
 )
 from PySide6.QtCore import QUrl, QSize, Qt, QSettings, QThreadPool, QRunnable, Signal, QTimer
 from PySide6.QtGui import QIcon, QKeySequence, QShortcut, QPixmap, QImage, QPalette, QColor
@@ -34,6 +34,7 @@ class KioskBrowserSettings:
         "fullscreen": True,
         "topbar": True,
         "topbar_12hr": True,
+        "topbar_update_speed": 1000,
     }
 
     @classmethod
@@ -78,6 +79,34 @@ class IconFetchWorker(QRunnable):
 
         # If we fail to fetch the icon, call the callback with None
         self.callback(None)
+
+
+class LabeledSpinBox(QWidget):
+    def __init__(self, label_text: str, parent=None):
+        super().__init__(parent)
+
+        layout = QVBoxLayout(self)
+
+        # Create label and spin box
+        self.label = QLabel(label_text)
+        self.spin_box = QSpinBox()
+
+        # Add widgets to the layout
+        layout.addWidget(self.label)
+        layout.addWidget(self.spin_box)
+
+        # Set the layout to the widget
+        self.setLayout(layout)
+
+        self.setValue = self.spin_box.setValue
+        self.setRange = self.spin_box.setRange
+        self.setSingleStep = self.spin_box.setSingleStep
+        self.setSuffix = self.spin_box.setSuffix
+        self.setPrefix = self.spin_box.setPrefix
+
+    def set_text(self, text: str):
+        """Set the text of the label."""
+        self.label.setText(text)
 
 
 class MainWindow(QMainWindow):
@@ -163,7 +192,7 @@ class MainWindow(QMainWindow):
 
         # Timers
         self.clock_timer = QTimer()
-        self.clock_timer.setInterval(1000)
+        self.clock_timer.setInterval(self.settings.get("topbar_update_speed", 1000))
         self.clock_timer.timeout.connect(lambda: self.top_bar_clock.setText(get_time_string(self.settings.get("topbar_12hr", True))))
         self.clock_timer.start()
 
@@ -348,6 +377,14 @@ class SettingsPage(QWidget):
         self.topbar_12hr.setChecked(self.settings.get("topbar_12hr", True))
         self.topbar_layout.addWidget(self.topbar_12hr, 0, 0)
 
+        self.topbar_update = LabeledSpinBox("Top Bar Update Speed")
+        self.topbar_update.setRange(500, 10000)
+        self.topbar_update.setSingleStep(500)
+        self.topbar_update.setSuffix("ms")
+        self.topbar_update.spin_box.setMaximumWidth(240)
+        self.topbar_update.setValue(self.settings.get("topbar_update_speed", 1000))
+        self.topbar_layout.addWidget(self.topbar_update, 0, 1)
+
         # Save Button
         self.save_button = QPushButton("Save")
         self.save_button.setIcon(qtaicon("mdi6.content-save-cog"))
@@ -449,6 +486,7 @@ class SettingsPage(QWidget):
         self.settings["fullscreen"] = self.fullscreen_checkbox.isChecked()
         self.settings["topbar"] = self.topbar_group.isChecked()
         self.settings["topbar_12hr"] = self.topbar_12hr.isChecked()
+        self.settings["topbar_update_speed"] = self.topbar_update.spin_box.value()
 
         # Save settings
         KioskBrowserSettings.save_settings(self.settings)

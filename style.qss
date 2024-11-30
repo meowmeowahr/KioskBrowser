@@ -220,3 +220,43 @@ QGroupBox {
     padding-top: 26px;
     padding-bottom: 4px;
 }
+
+QSpinBox {
+    background-color: #232A2F;
+    border-top-left-radius: 8px;
+    border-bottom-left-radius: 8px;
+    color: #fff;
+    font-size: 14px;
+    padding: 8px;
+    min-width: 80px;
+}
+
+QSpinBox:focus {
+    border: 1px solid #5f5f5f;
+}
+
+QSpinBox::up-button {
+    width: 16px;
+    background-color: #4CAF50;
+}
+
+QSpinBox::up-button:hover {
+    background-color: #5CBF60;
+}
+
+QSpinBox::up-button:pressed {
+    background-color: #6CCF70;
+}
+
+QSpinBox::down-button {
+    width: 16px;
+    background-color: #AF4C50;
+}
+
+QSpinBox::down-button:hover {
+    background-color: #BF5C60;
+}
+
+QSpinBox::down-button:pressed {
+    background-color: #CF6C70;
+}
