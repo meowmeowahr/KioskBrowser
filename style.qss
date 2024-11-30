@@ -262,3 +262,7 @@ QSpinBox::down-button:hover {
 QSpinBox::down-button:pressed {
     background-color: #CF6C70;
 }
+
+QLabel {
+    color: #fff;
+}
