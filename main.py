@@ -1,3 +1,5 @@
+import os.path
+
 from loguru import logger
 import sys
 import requests
@@ -191,6 +193,7 @@ class MainWindow(QMainWindow):
             button.clicked.connect(lambda _, idx=index: self._switch_page(idx))
             button.setText(label)
             button.setIconSize(QSize(16, 16))
+            button.setIcon(icon("mdi6.web"))
             button.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
             button.setFocusPolicy(Qt.FocusPolicy.TabFocus)
             button.setObjectName("WebTab")
@@ -222,18 +225,21 @@ class MainWindow(QMainWindow):
             # Fetch icon asynchronously
             url = self.settings["urls"][self.web_stack.count()][0]
             self._fetch_icon_async(button, label, url)
-        else:
+        elif os.path.exists(icon_path):
             # Use a local icon directly
             button.setIcon(QIcon(icon_path))
+        else:
+            button.setIcon(icon("mdi6.web"))
 
     def _fetch_icon_async(self, button: QPushButton, label: str, url: str):
-        def update_button_icon(icon: QIcon):
+        def update_button_icon(ico: QIcon):
             """Update the button with the fetched icon."""
-            if icon:
-                button.setIcon(icon)
+            if ico:
+                button.setIcon(ico)
                 logger.info(f"Fetched page icon for {label}")
             else:
                 logger.warning(f"No icon available for {label}")
+                button.setIcon(icon("mdi6.web"))
 
         # Start the worker to fetch the icon
         worker = IconFetchWorker(url, update_button_icon)
