@@ -170,6 +170,9 @@ class MainWindow(QMainWindow):
 
         self.settings_top_bar.addStretch()
 
+        self.settings_top_bar_version = QLabel(f"Version: {VERSION}")
+        self.settings_top_bar.addWidget(self.settings_top_bar_version)
+
         # Create settings page with callback to rebuild pages
         self.settings_pane = SettingsPage()
         self.settings_pane.rebuild.connect(self._rebuild_pages)
