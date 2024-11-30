@@ -181,7 +181,7 @@ QCheckBox {
     spacing: 6px;
 }
 
-QCheckBox::indicator {
+QCheckBox::indicator, QGroupBox::indicator {
     width: 24px;
     height: 24px;
     background-color: #232A2F;
@@ -189,15 +189,20 @@ QCheckBox::indicator {
     border-radius: 2px;
 }
 
-QCheckBox::indicator:hover {
+
+QCheckBox::indicator:hover, QGroupBox::indicator:hover {
     background-color: #2D3338;
     border: 1px solid #ffffff;
 }
 
-QCheckBox::indicator:checked {
+QCheckBox::indicator:checked, QGroupBox::indicator:checked {
     background-color: #4CAF50;
 }
 
-QCheckBox::indicator:unchecked {
+QCheckBox::indicator:unchecked, QGroupBox::indicator:unchecked {
     background-color: #AF4C50;
+}
+
+QGroupBox {
+    margin-top: 4px;
 }

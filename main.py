@@ -27,6 +27,7 @@ class KioskBrowserSettings:
         "urls": [],
         "windowBranding": "Kiosk Browser",
         "fullscreen": True,
+        "topbar": True
     }
 
     @classmethod
@@ -303,10 +304,14 @@ class SettingsPage(QWidget):
 
         # Other Settings
         self.window_branding_label = QLabel("Window Branding:")
-        self.window_branding_input = QLineEdit(self.settings["windowBranding"])
+        self.window_branding_input = QLineEdit(self.settings.get("windowBranding", "Kiosk Browser"))
 
         self.fullscreen_checkbox = QCheckBox("Fullscreen")
-        self.fullscreen_checkbox.setChecked(self.settings["fullscreen"])
+        self.fullscreen_checkbox.setChecked(self.settings.get("fullscreen", True))
+
+        self.topbar_group = QGroupBox("Top Bar")
+        self.topbar_group.setCheckable(True)
+        self.topbar_group.setChecked(self.settings.get("topbar", True))
 
         # Save Button
         self.save_button = QPushButton("Save")
@@ -329,6 +334,7 @@ class SettingsPage(QWidget):
         layout.addWidget(self.window_branding_label)
         layout.addWidget(self.window_branding_input)
         layout.addWidget(self.fullscreen_checkbox)
+        layout.addWidget(self.topbar_group)
         layout.addWidget(self.save_button)
 
     def _populate_url_table(self):
@@ -406,6 +412,7 @@ class SettingsPage(QWidget):
         # Update other settings
         self.settings["windowBranding"] = self.window_branding_input.text()
         self.settings["fullscreen"] = self.fullscreen_checkbox.isChecked()
+        self.settings["topbar"] = self.topbar_group.isChecked()
 
         # Save settings
         KioskBrowserSettings.save_settings(self.settings)
