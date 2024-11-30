@@ -7,14 +7,13 @@ from typing import Dict, Any
 from PySide6.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QHBoxLayout, QGridLayout,
     QPushButton, QLabel, QLineEdit, QCheckBox, QStackedWidget, QSizePolicy, QTableWidget, QHeaderView, QTableWidgetItem,
-    QMessageBox, QDialog, QMainWindow, QAbstractItemView
+    QDialog, QMainWindow, QAbstractItemView
 )
 from PySide6.QtCore import QUrl, QSize, Qt, QSettings, QThreadPool, QRunnable, Signal
 from PySide6.QtGui import QIcon, QKeySequence, QShortcut, QPixmap, QImage
 from PySide6.QtWebEngineWidgets import QWebEngineView
-from PySide6.QtWebEngineCore import QWebEngineProfile, QWebEnginePage, QWebEngineSettings
+from PySide6.QtWebEngineCore import QWebEngineProfile, QWebEnginePage
 
-from platformdirs import user_cache_dir
 
 VERSION = "dev"
 
@@ -116,7 +115,8 @@ class MainWindow(QMainWindow):
         self.settings_top_bar.addStretch()
 
         # Create settings page with callback to rebuild pages
-        self.settings_pane = SettingsPage(self._rebuild_pages)
+        self.settings_pane = SettingsPage()
+        self.settings_pane.rebuild.connect(self._rebuild_pages)
         self.settings_layout.addWidget(self.settings_pane)
 
         self.root_stack.addWidget(self.settings_widget)
@@ -221,9 +221,10 @@ class MainWindow(QMainWindow):
 
 
 class SettingsPage(QWidget):
-    def __init__(self, rebuild_callback=None):
+    rebuild = Signal()
+
+    def __init__(self):
         super().__init__()
-        self.rebuild_callback = rebuild_callback
         self.settings = KioskBrowserSettings.load_settings()
 
         self.setWindowTitle("Settings")
@@ -233,7 +234,8 @@ class SettingsPage(QWidget):
         self.url_table = QTableWidget(0, 3)  # 3 columns: URL, Label, Icon
         self.url_table.setHorizontalHeaderLabels(["URL", "Label", "Icon"])
         self.url_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
-        self.url_table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
+        self.url_table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectItems)
+        self.url_table.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
         self.url_table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         self._populate_url_table()
 
@@ -347,8 +349,7 @@ class SettingsPage(QWidget):
         KioskBrowserSettings.save_settings(self.settings)
 
         # Trigger page rebuild if callback is set
-        if self.rebuild_callback:
-            self.rebuild_callback()
+        self.rebuild.emit()
 
 class URLConfigDialog(QDialog):
     """Dialog for adding or editing a URL entry."""
