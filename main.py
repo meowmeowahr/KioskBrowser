@@ -19,7 +19,7 @@ from PySide6.QtWebEngineCore import QWebEngineProfile, QWebEnginePage
 
 from qtawesome import icon as qtaicon
 
-VERSION = "dev"
+VERSION = "1.0.0"
 
 
 def get_time_string(twelve: bool = True):
