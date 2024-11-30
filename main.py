@@ -91,9 +91,11 @@ class MainWindow(QMainWindow):
         self.root_stack.addWidget(self.main_widget)
 
         self.main_layout = QVBoxLayout()
+        self.main_layout.setContentsMargins(0, 0, 0, 0)
         self.main_widget.setLayout(self.main_layout)
 
         self.pages_layout = QHBoxLayout()
+        self.pages_layout.setContentsMargins(3, 3, 3, 0)
         self.main_layout.addLayout(self.pages_layout)
 
         self.web_stack = QStackedWidget()
