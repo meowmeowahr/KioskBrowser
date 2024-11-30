@@ -10,10 +10,11 @@ from PySide6.QtWidgets import (
     QDialog, QMainWindow, QAbstractItemView, QFileDialog, QGroupBox
 )
 from PySide6.QtCore import QUrl, QSize, Qt, QSettings, QThreadPool, QRunnable, Signal
-from PySide6.QtGui import QIcon, QKeySequence, QShortcut, QPixmap, QImage
+from PySide6.QtGui import QIcon, QKeySequence, QShortcut, QPixmap, QImage, QPalette, QColor
 from PySide6.QtWebEngineWidgets import QWebEngineView
 from PySide6.QtWebEngineCore import QWebEngineProfile, QWebEnginePage
 
+from qtawesome import icon, dark
 
 VERSION = "dev"
 
@@ -279,9 +280,13 @@ class SettingsPage(QWidget):
         self.remove_url_button.clicked.connect(self._remove_selected_urls)
 
         self.move_up_button = QPushButton("Move Up")
+        self.move_up_button.setIcon(icon("mdi6.triangle"))
+        self.move_up_button.setIconSize(QSize(20, 20))
         self.move_up_button.clicked.connect(self._move_up)
 
         self.move_down_button = QPushButton("Move Down")
+        self.move_down_button.setIcon(icon("mdi6.triangle-down"))
+        self.move_down_button.setIconSize(QSize(20, 20))
         self.move_down_button.clicked.connect(self._move_down)
 
         # Other Settings
@@ -477,5 +482,11 @@ class URLConfigDialog(QDialog):
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
+
+    palette = QPalette()
+    palette.setColor(QPalette.ColorRole.Text, QColor(255, 255, 255))
+    app.setPalette(palette)
+
+    app.setStyle('Fusion')
     win = MainWindow()
     sys.exit(app.exec())
