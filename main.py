@@ -109,7 +109,7 @@ class MainWindow(QMainWindow):
         self.settings_layout.addLayout(self.settings_top_bar)
 
         self.settings_back = QPushButton("Back")
-        self.settings_back.clicked.connect(lambda: self.root_stack.setCurrentIndex(0))
+        self.settings_back.clicked.connect(self.exit_settings)
         self.settings_top_bar.addWidget(self.settings_back)
 
         self.settings_top_bar.addStretch()
@@ -133,6 +133,10 @@ class MainWindow(QMainWindow):
         self._setup_pages()
         self._setup_shortcuts()
         self._apply_styling()
+
+    def exit_settings(self):
+        self.root_stack.setCurrentIndex(0)
+        self.settings_pane.save()
 
     def set_fullscreen(self, fs: bool):
         if fs:
@@ -179,7 +183,8 @@ class MainWindow(QMainWindow):
     def _rebuild_pages(self):
         """Rebuild pages when settings change."""
         self.settings = KioskBrowserSettings.load_settings()
-        self.setWindowTitle(self.settings["windowBranding"])
+        self.setWindowTitle(self.settings.get("windowBranding", "Kiosk Browser"))
+        self.set_fullscreen(self.settings.get("fullscreen", True))
         self._setup_pages()
 
     def _set_button_icon(self, button: QPushButton, label: str, icon_path: str):
@@ -260,7 +265,7 @@ class SettingsPage(QWidget):
 
         # Save Button
         self.save_button = QPushButton("Save")
-        self.save_button.clicked.connect(self._save_settings)
+        self.save_button.clicked.connect(self.save)
 
         # Layout
         layout = QVBoxLayout(self)
@@ -330,7 +335,7 @@ class SettingsPage(QWidget):
             self.url_table.setItem(row1, col, item2)
             self.url_table.setItem(row2, col, item1)
 
-    def _save_settings(self):
+    def save(self):
         """Save all settings, including the updated URL list."""
         # Update URL list
         urls = []
