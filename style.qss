@@ -233,6 +233,10 @@ QSpinBox {
     min-width: 80px;
 }
 
+QSpinBox:disabled {
+    color: #5f5f5f;
+}
+
 QSpinBox:focus {
     border: 1px solid #5f5f5f;
 }
@@ -240,6 +244,14 @@ QSpinBox:focus {
 QSpinBox::up-button {
     width: 16px;
     background-color: #4CAF50;
+}
+
+QSpinBox::up-button:disabled {
+    background-color: #5f5f5f;
+}
+
+QSpinBox::down-button:disabled {
+    background-color: #5f5f5f;
 }
 
 QSpinBox::up-button:hover {
@@ -265,4 +277,8 @@ QSpinBox::down-button:pressed {
 
 QLabel {
     color: #fff;
+}
+
+QLabel:disabled {
+    color: #5f5f5f;
 }
