@@ -42,7 +42,8 @@
 }
 
 #ClockWidget,
-#BatteryWidget > QLabel{
+#BatteryWidget > QLabel,
+#CpuWidget > QLabel{
     font-weight: bold;
     color: #fff;
 }

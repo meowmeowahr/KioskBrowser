@@ -7,7 +7,7 @@ import favicon
 import datetime
 from typing import Dict, Any
 
-from psutil import sensors_battery
+from psutil import sensors_battery, cpu_percent
 
 from PySide6.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QHBoxLayout, QGridLayout,
@@ -73,6 +73,9 @@ def get_battery():
 
     return icon, f"{percent}%"
 
+def get_cpu():
+    return qtaicon("mdi6.cpu-64-bit" if sys.maxsize > 2**32 else "mdi6.cpu-32-bit"), f"{round(cpu_percent())}%"
+
 class KioskBrowserSettings:
     """Manages the settings using QSettings."""
     DEFAULT_SETTINGS = {
@@ -82,6 +85,7 @@ class KioskBrowserSettings:
         "topbar": True,
         "topbar_12hr": True,
         "topbar_battery": False,
+        "topbar_cpu": False,
         "topbar_update_speed": 1000,
     }
 
@@ -130,7 +134,7 @@ class IconFetchWorker(QRunnable):
 
 
 class TopBarIconItem(QWidget):
-    IconSize = (18, 18)
+    IconSize = (20, 20)
     def __init__(self, ico: QIcon, text: str = "", final_stretch=True):
         super().__init__()
 
@@ -213,6 +217,11 @@ class MainWindow(QMainWindow):
         # Top Bar Items
         self.top_bar_layout.addStretch()
 
+        self.top_bar_cpu = TopBarIconItem(*get_cpu())
+        self.top_bar_cpu.setObjectName("CpuWidget")
+        self.top_bar_cpu.setVisible(self.settings.get("topbar_cpu", False))
+        self.top_bar_layout.addWidget(self.top_bar_cpu)
+        
         self.top_bar_battery = TopBarIconItem(*get_battery())
         self.top_bar_battery.setObjectName("BatteryWidget")
         self.top_bar_battery.setVisible(self.settings.get("topbar_battery", False))
@@ -277,6 +286,7 @@ class MainWindow(QMainWindow):
     def topbar_update(self):
         self.top_bar_clock.setText(get_time_string(self.settings.get("topbar_12hr", True)))
         self.top_bar_battery.modify(*get_battery())
+        self.top_bar_cpu.modify(*get_cpu())
 
     def exit_settings(self):
         self.root_stack.setCurrentIndex(0)
@@ -359,6 +369,7 @@ class MainWindow(QMainWindow):
         self.set_fullscreen(self.settings.get("fullscreen", True))
         self.top_bar_widget.setVisible(self.settings.get("topbar", True))
         self.top_bar_battery.setVisible(self.settings.get("topbar_battery", False))
+        self.top_bar_cpu.setVisible(self.settings.get("topbar_cpu", False))
         self.pages_layout.setContentsMargins(3, 0 if self.settings.get("topbar", True) else 3, 3, 0)
         self._setup_pages()
 
@@ -468,6 +479,10 @@ class SettingsPage(QWidget):
         self.topbar_battery.setChecked(self.settings.get("topbar_battery", False))
         self.topbar_layout.addWidget(self.topbar_battery, 1, 0)
 
+        self.topbar_cpu = QCheckBox("CPU Usage")
+        self.topbar_cpu.setChecked(self.settings.get("topbar_cpu", False))
+        self.topbar_layout.addWidget(self.topbar_cpu, 2, 0)
+        
         self.topbar_update = LabeledSpinBox("Top Bar Update Speed")
         self.topbar_update.setRange(500, 10000)
         self.topbar_update.setSingleStep(500)
@@ -578,6 +593,7 @@ class SettingsPage(QWidget):
         self.settings["topbar"] = self.topbar_group.isChecked()
         self.settings["topbar_12hr"] = self.topbar_12hr.isChecked()
         self.settings["topbar_battery"] = self.topbar_battery.isChecked()
+        self.settings["topbar_cpu"] = self.topbar_cpu.isChecked()
         self.settings["topbar_update_speed"] = self.topbar_update.spin_box.value()
 
         # Save settings
