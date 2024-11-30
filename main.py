@@ -7,7 +7,7 @@ from typing import Dict, Any
 from PySide6.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QHBoxLayout, QGridLayout,
     QPushButton, QLabel, QLineEdit, QCheckBox, QStackedWidget, QSizePolicy, QTableWidget, QHeaderView, QTableWidgetItem,
-    QMessageBox, QDialog, QMainWindow
+    QMessageBox, QDialog, QMainWindow, QAbstractItemView
 )
 from PySide6.QtCore import QUrl, QSize, Qt, QSettings, QThreadPool, QRunnable, Signal
 from PySide6.QtGui import QIcon, QKeySequence, QShortcut, QPixmap, QImage
@@ -185,7 +185,7 @@ class MainWindow(QMainWindow):
     def _set_button_icon(self, button: QPushButton, label: str, icon_path: str):
         if icon_path == "@pageicon":
             # Fetch icon asynchronously
-            url = self.settings["urls"][self.web_stack.count() - 1][0]
+            url = self.settings["urls"][self.web_stack.count()][0]
             self._fetch_icon_async(button, label, url)
         else:
             # Use a local icon directly
@@ -233,6 +233,8 @@ class SettingsPage(QWidget):
         self.url_table = QTableWidget(0, 3)  # 3 columns: URL, Label, Icon
         self.url_table.setHorizontalHeaderLabels(["URL", "Label", "Icon"])
         self.url_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+        self.url_table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
+        self.url_table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         self._populate_url_table()
 
         self.add_url_button = QPushButton("Add URL")
@@ -240,6 +242,12 @@ class SettingsPage(QWidget):
 
         self.remove_url_button = QPushButton("Remove Selected")
         self.remove_url_button.clicked.connect(self._remove_selected_urls)
+
+        self.move_up_button = QPushButton("Move Up")
+        self.move_up_button.clicked.connect(self._move_up)
+
+        self.move_down_button = QPushButton("Move Down")
+        self.move_down_button.clicked.connect(self._move_down)
 
         # Other Settings
         self.window_branding_label = QLabel("Window Branding:")
@@ -258,6 +266,8 @@ class SettingsPage(QWidget):
         url_layout = QHBoxLayout()
         url_layout.addWidget(self.add_url_button)
         url_layout.addWidget(self.remove_url_button)
+        url_layout.addWidget(self.move_up_button)
+        url_layout.addWidget(self.move_down_button)
 
         layout.addWidget(self.url_label)
         layout.addWidget(self.url_table)
@@ -285,6 +295,7 @@ class SettingsPage(QWidget):
             url, label, icon = dialog.get_data()
             row = self.url_table.rowCount()
             self.url_table.insertRow(row)
+            self.url_table.setRowHeight(row, 48)
             self.url_table.setItem(row, 0, QTableWidgetItem(url))
             self.url_table.setItem(row, 1, QTableWidgetItem(label))
             self.url_table.setItem(row, 2, QTableWidgetItem(icon))
@@ -294,6 +305,28 @@ class SettingsPage(QWidget):
         selected_rows = set(item.row() for item in self.url_table.selectedItems())
         for row in sorted(selected_rows, reverse=True):
             self.url_table.removeRow(row)
+
+    def _move_up(self):
+        """Move the selected row up."""
+        current_row = self.url_table.currentRow()
+        if current_row > 0:
+            self._swap_rows(current_row, current_row - 1)
+            self.url_table.selectRow(current_row - 1)
+
+    def _move_down(self):
+        """Move the selected row down."""
+        current_row = self.url_table.currentRow()
+        if current_row < self.url_table.rowCount() - 1:
+            self._swap_rows(current_row, current_row + 1)
+            self.url_table.selectRow(current_row + 1)
+
+    def _swap_rows(self, row1, row2):
+        """Swap two rows in the table."""
+        for col in range(self.url_table.columnCount()):
+            item1 = self.url_table.takeItem(row1, col)
+            item2 = self.url_table.takeItem(row2, col)
+            self.url_table.setItem(row1, col, item2)
+            self.url_table.setItem(row2, col, item1)
 
     def _save_settings(self):
         """Save all settings, including the updated URL list."""
@@ -316,7 +349,6 @@ class SettingsPage(QWidget):
         # Trigger page rebuild if callback is set
         if self.rebuild_callback:
             self.rebuild_callback()
-
 
 class URLConfigDialog(QDialog):
     """Dialog for adding or editing a URL entry."""

@@ -12,7 +12,6 @@
 
 #WebTab:hover, #WebTab:focus {
     background-color: #333A3F;
-    border-bottom: 3px solid #efefef;
     color: #fff;
     font-size: 14px;
     font-weight: bold;
@@ -32,7 +31,7 @@
     width: 100%;
 }
 
-#MainWindow > QWidget{
+#MainWindow > QWidget, QDialog {
     background-color: #121212;
     color: #fff;
 }
