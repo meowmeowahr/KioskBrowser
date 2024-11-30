@@ -21,11 +21,12 @@ from qtawesome import icon as qtaicon
 
 VERSION = "1.0.0"
 
-def resource_path(relative_path):
+def resource_path(relative_path) -> str | bytes:
     """ Get absolute path to resource, works for dev and PyInstaller """
     try:
         # PyInstaller creates a temp folder and stores files there
         # noinspection PyUnresolvedReferences
+        # noinspection PyProtectedMember
         base_path = sys._MEIPASS
     except AttributeError:
         base_path = os.path.abspath(".")
@@ -600,7 +601,7 @@ if __name__ == "__main__":
     palette = QPalette()
     palette.setColor(QPalette.ColorRole.Text, QColor(255, 255, 255))
     app.setPalette(palette)
-
     app.setStyle('Fusion')
+
     win = MainWindow()
     sys.exit(app.exec())
