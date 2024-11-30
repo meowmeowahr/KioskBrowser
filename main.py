@@ -7,6 +7,8 @@ import favicon
 import datetime
 from typing import Dict, Any
 
+from psutil import sensors_battery
+
 from PySide6.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QHBoxLayout, QGridLayout,
     QPushButton, QLabel, QLineEdit, QCheckBox, QStackedWidget, QSizePolicy, QTableWidget, QHeaderView, QTableWidgetItem,
@@ -38,6 +40,39 @@ def get_time_string(twelve: bool = True):
     dt = datetime.datetime.now()
     return dt.strftime("%I:%M %p") if twelve else dt.strftime("%H:%M")
 
+def get_battery():
+    battery = sensors_battery()
+    if not battery:
+        return qtaicon("mdi6.battery-off"), "??%"
+
+    percent = round(battery.percent)
+    charging = battery.power_plugged
+
+    if percent > 90:
+        icon = qtaicon(f"mdi6.battery{'-charging' if charging else ''}", color="#4CAF50" if charging else "#FFFFFF")
+    elif percent > 80:
+        icon = qtaicon(f"mdi6.battery{'-charging' if charging else ''}-90", color="#4CAF50" if charging else "#FFFFFF")
+    elif percent > 70:
+        icon = qtaicon(f"mdi6.battery{'-charging' if charging else ''}-80", color="#4CAF50" if charging else "#FFFFFF")
+    elif percent > 60:
+        icon = qtaicon(f"mdi6.battery{'-charging' if charging else ''}-70", color="#4CAF50" if charging else "#FFFFFF")
+    elif percent > 50:
+        icon = qtaicon(f"mdi6.battery{'-charging' if charging else ''}-60", color="#4CAF50" if charging else "#FFFFFF")
+    elif percent > 40:
+        icon = qtaicon(f"mdi6.battery{'-charging' if charging else ''}-50", color="#4CAF50" if charging else "#FFFFFF")
+    elif percent > 30:
+        icon = qtaicon(f"mdi6.battery{'-charging' if charging else ''}-40", color="#4CAF50" if charging else "#FFFFFF")
+    elif percent > 20:
+        icon = qtaicon(f"mdi6.battery{'-charging' if charging else ''}-30", color="#4CAF50" if charging else "#FFFFFF")
+    elif percent > 10 and not charging:
+        icon = qtaicon("mdi6.battery-20", color="#F44336")
+    elif percent > 10 and charging:
+        icon = qtaicon("mdi6.battery-charging-20", color="#4CAF50")
+    else:
+        icon = qtaicon("mdi6.battery-alert", color="#F44336")
+
+    return icon, f"{percent}%"
+
 class KioskBrowserSettings:
     """Manages the settings using QSettings."""
     DEFAULT_SETTINGS = {
@@ -46,6 +81,7 @@ class KioskBrowserSettings:
         "fullscreen": True,
         "topbar": True,
         "topbar_12hr": True,
+        "topbar_battery": False,
         "topbar_update_speed": 1000,
     }
 
@@ -91,6 +127,28 @@ class IconFetchWorker(QRunnable):
 
         # If we fail to fetch the icon, call the callback with None
         self.callback(None)
+
+
+class TopBarIconItem(QWidget):
+    IconSize = (18, 18)
+    def __init__(self, ico: QIcon, text: str = "", final_stretch=True):
+        super().__init__()
+
+        layout = QHBoxLayout()
+        layout.setContentsMargins(0, 0, 0, 0)
+        self.setLayout(layout)
+
+        self.icon = QLabel()
+        self.icon.setPixmap(ico.pixmap(*self.IconSize))
+
+        self.text = QLabel(text)
+
+        layout.addWidget(self.icon)
+        layout.addWidget(self.text)
+
+    def modify(self, ico: QIcon, text: str):
+        self.icon.setPixmap(ico.pixmap(*self.IconSize))
+        self.text.setText(text)
 
 
 class LabeledSpinBox(QWidget):
@@ -155,6 +213,11 @@ class MainWindow(QMainWindow):
         # Top Bar Items
         self.top_bar_layout.addStretch()
 
+        self.top_bar_battery = TopBarIconItem(*get_battery())
+        self.top_bar_battery.setObjectName("BatteryWidget")
+        self.top_bar_battery.setVisible(self.settings.get("topbar_battery", False))
+        self.top_bar_layout.addWidget(self.top_bar_battery)
+
         self.top_bar_clock = QLabel(get_time_string(self.settings.get("topbar_12hr", True)))
         self.top_bar_clock.setObjectName("ClockWidget")
         self.top_bar_layout.addWidget(self.top_bar_clock)
@@ -208,9 +271,12 @@ class MainWindow(QMainWindow):
         # Timers
         self.clock_timer = QTimer()
         self.clock_timer.setInterval(self.settings.get("topbar_update_speed", 1000))
-        self.clock_timer.timeout.connect(lambda: self.top_bar_clock.setText(get_time_string(self.settings.get("topbar_12hr", True))))
+        self.clock_timer.timeout.connect(self.topbar_update)
         self.clock_timer.start()
 
+    def topbar_update(self):
+        self.top_bar_clock.setText(get_time_string(self.settings.get("topbar_12hr", True)))
+        self.top_bar_battery.modify(*get_battery())
 
     def exit_settings(self):
         self.root_stack.setCurrentIndex(0)
@@ -292,6 +358,7 @@ class MainWindow(QMainWindow):
         self.setWindowTitle(self.settings.get("windowBranding", "Kiosk Browser"))
         self.set_fullscreen(self.settings.get("fullscreen", True))
         self.top_bar_widget.setVisible(self.settings.get("topbar", True))
+        self.top_bar_battery.setVisible(self.settings.get("topbar_battery", False))
         self.pages_layout.setContentsMargins(3, 0 if self.settings.get("topbar", True) else 3, 3, 0)
         self._setup_pages()
 
@@ -396,6 +463,10 @@ class SettingsPage(QWidget):
         self.topbar_12hr = QCheckBox("12-Hour Clock")
         self.topbar_12hr.setChecked(self.settings.get("topbar_12hr", True))
         self.topbar_layout.addWidget(self.topbar_12hr, 0, 0)
+
+        self.topbar_battery = QCheckBox("Laptop Battery")
+        self.topbar_battery.setChecked(self.settings.get("topbar_battery", False))
+        self.topbar_layout.addWidget(self.topbar_battery, 1, 0)
 
         self.topbar_update = LabeledSpinBox("Top Bar Update Speed")
         self.topbar_update.setRange(500, 10000)
@@ -506,6 +577,7 @@ class SettingsPage(QWidget):
         self.settings["fullscreen"] = self.fullscreen_checkbox.isChecked()
         self.settings["topbar"] = self.topbar_group.isChecked()
         self.settings["topbar_12hr"] = self.topbar_12hr.isChecked()
+        self.settings["topbar_battery"] = self.topbar_battery.isChecked()
         self.settings["topbar_update_speed"] = self.topbar_update.spin_box.value()
 
         # Save settings
