@@ -9,7 +9,7 @@ from PySide6.QtWidgets import (
     QPushButton, QLabel, QLineEdit, QCheckBox, QStackedWidget, QSizePolicy, QTableWidget, QHeaderView, QTableWidgetItem,
     QMessageBox, QDialog, QMainWindow
 )
-from PySide6.QtCore import QUrl, QSize, Qt, QSettings, QThreadPool, QRunnable
+from PySide6.QtCore import QUrl, QSize, Qt, QSettings, QThreadPool, QRunnable, Signal
 from PySide6.QtGui import QIcon, QKeySequence, QShortcut, QPixmap, QImage
 from PySide6.QtWebEngineWidgets import QWebEngineView
 from PySide6.QtWebEngineCore import QWebEngineProfile, QWebEnginePage, QWebEngineSettings
@@ -17,6 +17,7 @@ from PySide6.QtWebEngineCore import QWebEngineProfile, QWebEnginePage, QWebEngin
 from platformdirs import user_cache_dir
 
 VERSION = "dev"
+
 
 class KioskBrowserSettings:
     """Manages the settings using QSettings."""
@@ -31,7 +32,8 @@ class KioskBrowserSettings:
     def load_settings(cls) -> Dict[str, Any]:
         """Loads settings using QSettings and applies defaults for missing keys."""
         settings = QSettings("meowmeowahr", "KioskBrowser")
-        loaded_settings = {key: settings.value(key, default, type=type(default)) for key, default in cls.DEFAULT_SETTINGS.items()}
+        loaded_settings = {key: settings.value(key, default, type=type(default)) for key, default in
+                           cls.DEFAULT_SETTINGS.items()}
         logger.debug("Settings loaded: {}", loaded_settings)
         return loaded_settings
 
@@ -46,6 +48,7 @@ class KioskBrowserSettings:
 
 class IconFetchWorker(QRunnable):
     """Worker to fetch the page icon asynchronously."""
+
     def __init__(self, url: str, callback: callable):
         super().__init__()
         self.url = url
@@ -60,7 +63,8 @@ class IconFetchWorker(QRunnable):
                 response = requests.get(icon.url, stream=True)
                 if response.status_code == 200:
                     # Pass the icon data back to the callback
-                    self.callback(QIcon(QPixmap(QImage.fromData(response.content)).scaled(32, 32, mode=Qt.TransformationMode.SmoothTransformation)))
+                    self.callback(QIcon(QPixmap(QImage.fromData(response.content)).scaled(32, 32,
+                                                                                          mode=Qt.TransformationMode.SmoothTransformation)))
                     return
         except Exception as e:
             logger.warning(f"Failed to fetch page icon for {self.url}: {e}")
@@ -78,12 +82,7 @@ class MainWindow(QMainWindow):
         self.setWindowTitle(self.settings["windowBranding"])
         self.setWindowIcon(QIcon("icon.png"))
 
-        if self.settings.get("fullscreen", False):
-            self.showFullScreen()
-        else:
-            self.show()
-
-        self.settings_pane = SettingsPage()
+        self.set_fullscreen(self.settings.get("fullscreen", True))
 
         self.thread_pool = QThreadPool()
 
@@ -93,6 +92,16 @@ class MainWindow(QMainWindow):
         self.main_widget = QWidget()
         self.root_stack.addWidget(self.main_widget)
 
+        self.main_layout = QVBoxLayout()
+        self.main_widget.setLayout(self.main_layout)
+
+        self.pages_layout = QHBoxLayout()
+        self.main_layout.addLayout(self.pages_layout)
+
+        self.web_stack = QStackedWidget()
+        self.main_layout.addWidget(self.web_stack)
+
+        # Create settings page
         self.settings_widget = QWidget()
         self.settings_layout = QVBoxLayout()
         self.settings_widget.setLayout(self.settings_layout)
@@ -106,30 +115,41 @@ class MainWindow(QMainWindow):
 
         self.settings_top_bar.addStretch()
 
+        # Create settings page with callback to rebuild pages
+        self.settings_pane = SettingsPage(self._rebuild_pages)
         self.settings_layout.addWidget(self.settings_pane)
 
         self.root_stack.addWidget(self.settings_widget)
 
-        self.main_layout = QVBoxLayout()
-        self.main_widget.setLayout(self.main_layout)
-
-        self.pages_layout = QHBoxLayout()
-        self.main_layout.addLayout(self.pages_layout)
-
-        self.web_stack = QStackedWidget()
-        self.main_layout.addWidget(self.web_stack)
-
+        # Shared profile for web pages
         self.shared_profile = QWebEngineProfile("KioskProfile", self)
         self.shared_profile.setPersistentCookiesPolicy(QWebEngineProfile.PersistentCookiesPolicy.AllowPersistentCookies)
         logger.info(f"Storage path: {self.shared_profile.persistentStoragePath()}")
         logger.info(f"Cache path: {self.shared_profile.cachePath()}")
 
+        # Initial page setup
         self._setup_pages()
         self._setup_shortcuts()
         self._apply_styling()
 
+    def set_fullscreen(self, fs: bool):
+        if fs:
+            self.showFullScreen()
+        else:
+            self.showNormal()
 
     def _setup_pages(self):
+        # Clear existing pages and buttons
+        while self.web_stack.count():
+            self.web_stack.removeWidget(self.web_stack.widget(0))
+
+        # Clear existing buttons
+        for i in reversed(range(self.pages_layout.count())):
+            widget = self.pages_layout.itemAt(i).widget()
+            self.pages_layout.removeWidget(widget)
+            widget.deleteLater()
+
+        # Create new pages and buttons
         for index, (url, label, icon_path) in enumerate(self.settings["urls"]):
             button = QPushButton()
             button.clicked.connect(lambda _, idx=index: self._switch_page(idx))
@@ -148,12 +168,21 @@ class MainWindow(QMainWindow):
 
             # Add to the widget stack
             self.web_stack.addWidget(web_page)
-            self.web_stack.show()
+
+        # Ensure the first page is selected initially
+        if self.web_stack.count() > 0:
+            self._switch_page(0)
+
+    def _rebuild_pages(self):
+        """Rebuild pages when settings change."""
+        self.settings = KioskBrowserSettings.load_settings()
+        self.setWindowTitle(self.settings["windowBranding"])
+        self._setup_pages()
 
     def _set_button_icon(self, button: QPushButton, label: str, icon_path: str):
         if icon_path == "@pageicon":
             # Fetch icon asynchronously
-            url = self.settings["urls"][self.web_stack.count()][0]
+            url = self.settings["urls"][self.web_stack.count() - 1][0]
             self._fetch_icon_async(button, label, url)
         else:
             # Use a local icon directly
@@ -187,9 +216,11 @@ class MainWindow(QMainWindow):
         logger.info("Opening settings window.")
         self.root_stack.setCurrentIndex(1)
 
+
 class SettingsPage(QWidget):
-    def __init__(self):
+    def __init__(self, rebuild_callback=None):
         super().__init__()
+        self.rebuild_callback = rebuild_callback
         self.settings = KioskBrowserSettings.load_settings()
 
         self.setWindowTitle("Settings")
@@ -276,12 +307,17 @@ class SettingsPage(QWidget):
         self.settings["windowBranding"] = self.window_branding_input.text()
         self.settings["fullscreen"] = self.fullscreen_checkbox.isChecked()
 
+        # Save settings
         KioskBrowserSettings.save_settings(self.settings)
-        QMessageBox.information(self, "Settings Saved", "Settings have been saved successfully.")
+
+        # Trigger page rebuild if callback is set
+        if self.rebuild_callback:
+            self.rebuild_callback()
 
 
 class URLConfigDialog(QDialog):
     """Dialog for adding or editing a URL entry."""
+
     def __init__(self, url="", label="", icon=""):
         super().__init__()
         self.setWindowTitle("URL Configuration")

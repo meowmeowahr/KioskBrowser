@@ -1,6 +1,5 @@
 #WebTab{
     background-color: #232A2F;
-    border: 0px solid #efefef;
     border-bottom: 2px solid #efefef;
     color: #fff;
     font-size: 14px;
@@ -8,11 +7,11 @@
     padding: 12px;
     text-align: center;
     width: 100%;
+    border-radius: 2px;
 }
 
-#WebTab:hover{
-    background-color: #232A2F;
-    border: 1px solid #efefef;
+#WebTab:hover, #WebTab:focus {
+    background-color: #333A3F;
     border-bottom: 3px solid #efefef;
     color: #fff;
     font-size: 14px;
@@ -23,8 +22,7 @@
 }
 
 #WebTab:pressed{
-    background-color: #333A3F;
-    border: 1px solid #efefef;
+    background-color: #434A4F;
     border-bottom: 3px solid #efefef;
     color: #fff;
     font-size: 14px;
@@ -41,9 +39,8 @@
 
 /* QPushButton Styles */
 QPushButton {
-    background-color: #232A2F;
-    border: 2px solid #5f5f5f;
-    border-radius: 4px;
+    background-color: #11407E;
+    border-radius: 8px;
     color: #fff;
     font-size: 14px;
     font-weight: bold;
@@ -51,48 +48,110 @@ QPushButton {
     min-width: 80px;
 }
 
-QPushButton:hover {
-    background-color: #2D3338;
-    border: 2px solid #ffffff;
+QPushButton:hover, QPushButton:focus {
+    background-color: #21508E;
     color: #efefef;
+    outline: none;
 }
 
 QPushButton:pressed {
-    background-color: #333A3F;
+    background-color: #31609E;
     border: 2px solid #ffffff;
     color: #fff;
 }
 
-/* QTableWidget Styles */
-QTableWidget {
+/* Table Widget Base Styling */
+QTableWidget, QTableView {
     background-color: #232A2F;
     color: #fff;
     gridline-color: #3A3F45;
     font-size: 15px;
+    selection-background-color: #11407E;
+    selection-color: #ffffff;
+    alternate-background-color: #2A3136; /* For striped rows */
 }
 
+/* Header Styling */
 QHeaderView::section {
     background-color: #333A3F;
     color: #efefef;
-    padding: 4px;
+    padding: 8px;
     border: 1px solid #3A3F45;
+    font-weight: bold;
+    text-align: left;
 }
 
-QTableWidget::item {
+QHeaderView::section:horizontal {
+    border-right: 1px solid #3A3F45;
+}
+
+QHeaderView::section:vertical {
+    border-bottom: 1px solid #3A3F45;
+}
+
+/* Table Item Styling */
+QTableWidget::item, QTableView::item {
     background-color: #232A2F;
     border: 1px solid #3A3F45;
-    padding: 18px;
+    padding: 8px;
+    selection-background-color: #11407E;
+    outline: none;
 }
 
-QTableWidget::item:selected {
+/* Editable Items */
+QTableWidget::item:focus, QTableView::item:focus {
+    background-color: #2D3338;
+    outline: none;
+}
+
+/* Editing State */
+QTableWidget QLineEdit, QTableView QLineEdit {
+    background-color: #2D3338;
+    border-radius: 4px;
+    color: #fff;
+    font-size: 14px;
+    padding: 0px 12px;
+    selection-background-color: #11407E;
+    selection-color: #ffffff;
+}
+
+QTableWidget QLineEdit:focus, QTableView QLineEdit:focus {
+    background-color: #333A3F;
+    outline: none;
+}
+
+/* Alternate Row Coloring for Readability */
+QTableWidget::item:alternate, QTableView::item:alternate {
+    background-color: #2A3136;
+}
+
+/* Scrollbar Styling for Table */
+QTableWidget QScrollBar:vertical, QTableView QScrollBar:vertical {
+    background-color: #232A2F;
+    width: 15px;
+    margin: 22px 0 22px 0;
+}
+
+QTableWidget QScrollBar::handle:vertical, QTableView QScrollBar::handle:vertical {
     background-color: #3A3F45;
+    min-height: 20px;
+}
+
+QTableWidget QScrollBar::add-line:vertical, QTableView QScrollBar::add-line:vertical,
+QTableWidget QScrollBar::sub-line:vertical, QTableView QScrollBar::sub-line:vertical {
+    background-color: #232A2F;
+    height: 20px;
+}
+
+/* Improved Selection Styling */
+QTableWidget::item:selected, QTableView::item:selected {
+    background-color: #11407E;
     color: #ffffff;
 }
 
 /* QLineEdit Styles */
 QLineEdit {
     background-color: #232A2F;
-    border: 2px solid #3A3F45;
     border-radius: 4px;
     color: #fff;
     font-size: 14px;
@@ -100,7 +159,7 @@ QLineEdit {
 }
 
 QLineEdit:focus {
-    border: 2px solid #efefef;
+    border: 1px solid #5f5f5f;
 }
 
 /* QCheckBox Styles */
