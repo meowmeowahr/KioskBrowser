@@ -114,6 +114,8 @@ class MainWindow(QMainWindow):
 
         self.settings_back = QPushButton("Back")
         self.settings_back.clicked.connect(self.exit_settings)
+        self.settings_back.setIcon(icon("mdi6.arrow-left"))
+        self.settings_back.setIconSize(QSize(22, 22))
         self.settings_top_bar.addWidget(self.settings_back)
 
         self.settings_top_bar.addStretch()
@@ -280,19 +282,23 @@ class SettingsPage(QWidget):
         self._populate_url_table()
 
         self.add_url_button = QPushButton("Add URL")
+        self.add_url_button.setIcon(icon("mdi6.plus"))
+        self.add_url_button.setIconSize(QSize(22, 22))
         self.add_url_button.clicked.connect(self._add_url)
 
         self.remove_url_button = QPushButton("Remove Selected")
+        self.remove_url_button.setIcon(icon("mdi6.delete"))
+        self.remove_url_button.setIconSize(QSize(22, 22))
         self.remove_url_button.clicked.connect(self._remove_selected_urls)
 
         self.move_up_button = QPushButton("Move Up")
         self.move_up_button.setIcon(icon("mdi6.triangle"))
-        self.move_up_button.setIconSize(QSize(20, 20))
+        self.move_up_button.setIconSize(QSize(22, 22))
         self.move_up_button.clicked.connect(self._move_up)
 
         self.move_down_button = QPushButton("Move Down")
         self.move_down_button.setIcon(icon("mdi6.triangle-down"))
-        self.move_down_button.setIconSize(QSize(20, 20))
+        self.move_down_button.setIconSize(QSize(22, 22))
         self.move_down_button.clicked.connect(self._move_down)
 
         # Other Settings
@@ -304,6 +310,8 @@ class SettingsPage(QWidget):
 
         # Save Button
         self.save_button = QPushButton("Save")
+        self.save_button.setIcon(icon("mdi6.content-save-cog"))
+        self.save_button.setIconSize(QSize(22, 22))
         self.save_button.clicked.connect(self.save)
 
         # Layout
