@@ -4,6 +4,7 @@ from loguru import logger
 import sys
 import requests
 import favicon
+import datetime
 from typing import Dict, Any
 
 from PySide6.QtWidgets import (
@@ -11,15 +12,19 @@ from PySide6.QtWidgets import (
     QPushButton, QLabel, QLineEdit, QCheckBox, QStackedWidget, QSizePolicy, QTableWidget, QHeaderView, QTableWidgetItem,
     QDialog, QMainWindow, QAbstractItemView, QFileDialog, QGroupBox
 )
-from PySide6.QtCore import QUrl, QSize, Qt, QSettings, QThreadPool, QRunnable, Signal
+from PySide6.QtCore import QUrl, QSize, Qt, QSettings, QThreadPool, QRunnable, Signal, QTimer
 from PySide6.QtGui import QIcon, QKeySequence, QShortcut, QPixmap, QImage, QPalette, QColor
 from PySide6.QtWebEngineWidgets import QWebEngineView
 from PySide6.QtWebEngineCore import QWebEngineProfile, QWebEnginePage
 
-from qtawesome import icon, dark
+from qtawesome import icon
 
 VERSION = "dev"
 
+
+def get_time_string(twelve: bool = True):
+    dt = datetime.datetime.now()
+    return dt.strftime("%I:%M %p") if twelve else dt.strftime("%H:%M")
 
 class KioskBrowserSettings:
     """Manages the settings using QSettings."""
@@ -104,10 +109,18 @@ class MainWindow(QMainWindow):
         self.main_layout.addWidget(self.top_bar_widget)
 
         self.top_bar_layout = QHBoxLayout()
+        self.top_bar_layout.setContentsMargins(12, 6, 12, 0)
         self.top_bar_widget.setLayout(self.top_bar_layout)
 
+        # Top Bar Items
+        self.top_bar_layout.addStretch()
+
+        self.top_bar_clock = QLabel(get_time_string(self.settings.get("topbar_12hr", True)))
+        self.top_bar_clock.setObjectName("ClockWidget")
+        self.top_bar_layout.addWidget(self.top_bar_clock)
+
         self.pages_layout = QHBoxLayout()
-        self.pages_layout.setContentsMargins(3, 3, 3, 0)
+        self.pages_layout.setContentsMargins(3, 0 if self.settings.get("topbar", True) else 3, 3, 0)
         self.main_layout.addLayout(self.pages_layout)
 
         self.web_stack = QStackedWidget()
@@ -148,6 +161,12 @@ class MainWindow(QMainWindow):
         self._setup_pages()
         self._setup_shortcuts()
         self._apply_styling()
+
+        # Timers
+        self.clock_timer = QTimer()
+        self.clock_timer.setInterval(1000)
+        self.clock_timer.timeout.connect(lambda: self.top_bar_clock.setText(get_time_string(self.settings.get("topbar_12hr", True))))
+        self.clock_timer.start()
 
 
     def exit_settings(self):
@@ -230,6 +249,7 @@ class MainWindow(QMainWindow):
         self.setWindowTitle(self.settings.get("windowBranding", "Kiosk Browser"))
         self.set_fullscreen(self.settings.get("fullscreen", True))
         self.top_bar_widget.setVisible(self.settings.get("topbar", True))
+        self.pages_layout.setContentsMargins(3, 0 if self.settings.get("topbar", True) else 3, 3, 0)
         self._setup_pages()
 
     def _set_button_icon(self, button: QPushButton, label: str, icon_path: str):
