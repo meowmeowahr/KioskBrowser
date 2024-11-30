@@ -21,6 +21,17 @@ from qtawesome import icon as qtaicon
 
 VERSION = "1.0.0"
 
+def resource_path(relative_path):
+    """ Get absolute path to resource, works for dev and PyInstaller """
+    try:
+        # PyInstaller creates a temp folder and stores files there
+        # noinspection PyUnresolvedReferences
+        base_path = sys._MEIPASS
+    except AttributeError:
+        base_path = os.path.abspath(".")
+
+    return os.path.join(base_path, relative_path)
+
 
 def get_time_string(twelve: bool = True):
     dt = datetime.datetime.now()
@@ -116,7 +127,7 @@ class MainWindow(QMainWindow):
 
         self.setObjectName("MainWindow")
         self.setWindowTitle(self.settings["windowBranding"])
-        self.setWindowIcon(QIcon("icon.png"))
+        self.setWindowIcon(QIcon(resource_path("icon.png")))
 
         self.set_fullscreen(self.settings.get("fullscreen", True))
 
@@ -237,7 +248,7 @@ class MainWindow(QMainWindow):
             no_page_layout = QVBoxLayout(no_page_widget)
 
             no_page_icon = QLabel()
-            no_page_icon.setPixmap(QPixmap("icon.png").scaled(512, 512, mode=Qt.TransformationMode.SmoothTransformation))
+            no_page_icon.setPixmap(QPixmap(resource_path("icon.png")).scaled(512, 512, mode=Qt.TransformationMode.SmoothTransformation))
             no_page_icon.setAlignment(Qt.AlignmentFlag.AlignCenter)
             no_page_layout.addWidget(no_page_icon)
 
@@ -316,7 +327,7 @@ class MainWindow(QMainWindow):
         QShortcut(QKeySequence("Shift+F1"), self).activated.connect(self._show_settings)
 
     def _apply_styling(self):
-        with open("style.qss", "r", encoding="utf-8") as f:
+        with open(resource_path("style.qss"), "r", encoding="utf-8") as f:
             self.setStyleSheet(f.read())
 
     def _show_settings(self):
