@@ -99,6 +99,13 @@ class MainWindow(QMainWindow):
         self.main_layout.setContentsMargins(0, 0, 0, 0)
         self.main_widget.setLayout(self.main_layout)
 
+        self.top_bar_widget = QWidget()
+        self.top_bar_widget.setVisible(self.settings.get("topbar", True))
+        self.main_layout.addWidget(self.top_bar_widget)
+
+        self.top_bar_layout = QHBoxLayout()
+        self.top_bar_widget.setLayout(self.top_bar_layout)
+
         self.pages_layout = QHBoxLayout()
         self.pages_layout.setContentsMargins(3, 3, 3, 0)
         self.main_layout.addLayout(self.pages_layout)
@@ -222,6 +229,7 @@ class MainWindow(QMainWindow):
         self.settings = KioskBrowserSettings.load_settings()
         self.setWindowTitle(self.settings.get("windowBranding", "Kiosk Browser"))
         self.set_fullscreen(self.settings.get("fullscreen", True))
+        self.top_bar_widget.setVisible(self.settings.get("topbar", True))
         self._setup_pages()
 
     def _set_button_icon(self, button: QPushButton, label: str, icon_path: str):
