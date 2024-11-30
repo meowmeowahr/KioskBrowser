@@ -205,4 +205,6 @@ QCheckBox::indicator:unchecked, QGroupBox::indicator:unchecked {
 
 QGroupBox {
     margin-top: 4px;
+    padding-top: 26px;
+    padding-bottom: 4px;
 }

@@ -27,7 +27,8 @@ class KioskBrowserSettings:
         "urls": [],
         "windowBranding": "Kiosk Browser",
         "fullscreen": True,
-        "topbar": True
+        "topbar": True,
+        "topbar_12hr": True,
     }
 
     @classmethod
@@ -313,6 +314,13 @@ class SettingsPage(QWidget):
         self.topbar_group.setCheckable(True)
         self.topbar_group.setChecked(self.settings.get("topbar", True))
 
+        self.topbar_layout = QGridLayout()
+        self.topbar_group.setLayout(self.topbar_layout)
+
+        self.topbar_12hr = QCheckBox("12-Hour Clock")
+        self.topbar_12hr.setChecked(self.settings.get("topbar_12hr", True))
+        self.topbar_layout.addWidget(self.topbar_12hr, 0, 0)
+
         # Save Button
         self.save_button = QPushButton("Save")
         self.save_button.setIcon(icon("mdi6.content-save-cog"))
@@ -413,6 +421,7 @@ class SettingsPage(QWidget):
         self.settings["windowBranding"] = self.window_branding_input.text()
         self.settings["fullscreen"] = self.fullscreen_checkbox.isChecked()
         self.settings["topbar"] = self.topbar_group.isChecked()
+        self.settings["topbar_12hr"] = self.topbar_12hr.isChecked()
 
         # Save settings
         KioskBrowserSettings.save_settings(self.settings)
