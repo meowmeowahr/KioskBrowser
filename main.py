@@ -318,18 +318,20 @@ class SettingsPage(QWidget):
             row = self.url_table.rowCount()
             self.url_table.insertRow(row)
             self.url_table.setRowHeight(row, 48)
+            self.url_table.verticalHeader().setSectionResizeMode(row, QHeaderView.ResizeMode.Fixed)
             self.url_table.setItem(row, 0, QTableWidgetItem(url))
             self.url_table.setItem(row, 1, QTableWidgetItem(label))
             self.url_table.setItem(row, 2, QTableWidgetItem(icon))
 
     def _add_url(self):
         """Add a new URL entry."""
-        dialog = URLConfigDialog()
+        dialog = URLConfigDialog(win)
         if dialog.exec():
             url, label, icon = dialog.get_data()
             row = self.url_table.rowCount()
             self.url_table.insertRow(row)
             self.url_table.setRowHeight(row, 48)
+            self.url_table.verticalHeader().setSectionResizeMode(row, QHeaderView.ResizeMode.Fixed)
             self.url_table.setItem(row, 0, QTableWidgetItem(url))
             self.url_table.setItem(row, 1, QTableWidgetItem(label))
             self.url_table.setItem(row, 2, QTableWidgetItem(icon))
@@ -394,8 +396,8 @@ class SettingsPage(QWidget):
 class URLConfigDialog(QDialog):
     """Dialog for adding or editing a URL entry."""
 
-    def __init__(self, url="", label="", icon=""):
-        super().__init__()
+    def __init__(self, parent=None, url="", label="", icon=""):
+        super().__init__(parent=parent)
         self.setWindowTitle("URL Configuration")
 
         # Inputs for URL and Label
@@ -474,5 +476,5 @@ class URLConfigDialog(QDialog):
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
-    MainWindow()
+    win = MainWindow()
     sys.exit(app.exec())

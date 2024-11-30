@@ -75,7 +75,7 @@ QTableWidget, QTableView {
     font-size: 15px;
     selection-background-color: #11407E;
     selection-color: #ffffff;
-    alternate-background-color: #2A3136; /* For striped rows */
+    alternate-background-color: #2A3136;
 }
 
 /* Header Styling */
