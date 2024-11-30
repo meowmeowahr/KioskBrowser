@@ -144,7 +144,8 @@ class MainWindow(QMainWindow):
         if fs:
             self.showFullScreen()
         else:
-            self.showNormal()
+            if self.isFullScreen():
+                self.showNormal()
             self.show()
 
     def _setup_pages(self):
