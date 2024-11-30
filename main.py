@@ -238,7 +238,7 @@ class MainWindow(QMainWindow):
             no_page_icon.setAlignment(Qt.AlignmentFlag.AlignCenter)
             no_page_layout.addWidget(no_page_icon)
 
-            no_page_text = QLabel("Welcome to KioskBrowser\nUse Alt+F1 to open settings and add pages")
+            no_page_text = QLabel("Welcome to KioskBrowser\nUse Ctrl+F1 to open settings and add pages")
             no_page_text.setObjectName("NoPagesText")
             no_page_text.setAlignment(Qt.AlignmentFlag.AlignCenter)
             no_page_layout.addWidget(no_page_text)
@@ -310,7 +310,7 @@ class MainWindow(QMainWindow):
         self.web_stack.setCurrentIndex(index)
 
     def _setup_shortcuts(self):
-        QShortcut(QKeySequence("Alt+F1"), self).activated.connect(self._show_settings)
+        QShortcut(QKeySequence("Ctrl+F1"), self).activated.connect(self._show_settings)
 
     def _apply_styling(self):
         with open("style.qss", "r", encoding="utf-8") as f:
