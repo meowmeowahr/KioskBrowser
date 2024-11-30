@@ -17,7 +17,7 @@ from PySide6.QtGui import QIcon, QKeySequence, QShortcut, QPixmap, QImage, QPale
 from PySide6.QtWebEngineWidgets import QWebEngineView
 from PySide6.QtWebEngineCore import QWebEngineProfile, QWebEnginePage
 
-from qtawesome import icon
+from qtawesome import icon as qtaicon
 
 VERSION = "dev"
 
@@ -67,8 +67,7 @@ class IconFetchWorker(QRunnable):
             # Fetch the favicon
             icons = favicon.get(self.url)
             if icons:
-                icon = icons[0]
-                response = requests.get(icon.url, stream=True)
+                response = requests.get(icons[0].url, stream=True)
                 if response.status_code == 200:
                     # Pass the icon data back to the callback
                     self.callback(QIcon(QPixmap(QImage.fromData(response.content)).scaled(32, 32,
@@ -136,7 +135,7 @@ class MainWindow(QMainWindow):
 
         self.settings_back = QPushButton("Back")
         self.settings_back.clicked.connect(self.exit_settings)
-        self.settings_back.setIcon(icon("mdi6.arrow-left"))
+        self.settings_back.setIcon(qtaicon("mdi6.arrow-left"))
         self.settings_back.setIconSize(QSize(22, 22))
         self.settings_top_bar.addWidget(self.settings_back)
 
@@ -223,7 +222,7 @@ class MainWindow(QMainWindow):
             button.clicked.connect(lambda _, idx=index: self._switch_page(idx))
             button.setText(label)
             button.setIconSize(QSize(16, 16))
-            button.setIcon(icon("mdi6.web"))
+            button.setIcon(qtaicon("mdi6.web"))
             button.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
             button.setFocusPolicy(Qt.FocusPolicy.TabFocus)
             button.setObjectName("WebTab")
@@ -261,7 +260,7 @@ class MainWindow(QMainWindow):
             # Use a local icon directly
             button.setIcon(QIcon(icon_path))
         else:
-            button.setIcon(icon("mdi6.web"))
+            button.setIcon(qtaicon("mdi6.web"))
 
     def _fetch_icon_async(self, button: QPushButton, label: str, url: str):
         def update_button_icon(ico: QIcon):
@@ -271,7 +270,7 @@ class MainWindow(QMainWindow):
                 logger.info(f"Fetched page icon for {label}")
             else:
                 logger.warning(f"No icon available for {label}")
-                button.setIcon(icon("mdi6.web"))
+                button.setIcon(qtaicon("mdi6.web"))
 
         # Start the worker to fetch the icon
         worker = IconFetchWorker(url, update_button_icon)
@@ -312,22 +311,22 @@ class SettingsPage(QWidget):
         self._populate_url_table()
 
         self.add_url_button = QPushButton("Add URL")
-        self.add_url_button.setIcon(icon("mdi6.plus"))
+        self.add_url_button.setIcon(qtaicon("mdi6.plus"))
         self.add_url_button.setIconSize(QSize(22, 22))
         self.add_url_button.clicked.connect(self._add_url)
 
         self.remove_url_button = QPushButton("Remove Selected")
-        self.remove_url_button.setIcon(icon("mdi6.delete"))
+        self.remove_url_button.setIcon(qtaicon("mdi6.delete"))
         self.remove_url_button.setIconSize(QSize(22, 22))
         self.remove_url_button.clicked.connect(self._remove_selected_urls)
 
         self.move_up_button = QPushButton("Move Up")
-        self.move_up_button.setIcon(icon("mdi6.triangle"))
+        self.move_up_button.setIcon(qtaicon("mdi6.triangle"))
         self.move_up_button.setIconSize(QSize(22, 22))
         self.move_up_button.clicked.connect(self._move_up)
 
         self.move_down_button = QPushButton("Move Down")
-        self.move_down_button.setIcon(icon("mdi6.triangle-down"))
+        self.move_down_button.setIcon(qtaicon("mdi6.triangle-down"))
         self.move_down_button.setIconSize(QSize(22, 22))
         self.move_down_button.clicked.connect(self._move_down)
 
@@ -351,7 +350,7 @@ class SettingsPage(QWidget):
 
         # Save Button
         self.save_button = QPushButton("Save")
-        self.save_button.setIcon(icon("mdi6.content-save-cog"))
+        self.save_button.setIcon(qtaicon("mdi6.content-save-cog"))
         self.save_button.setIconSize(QSize(22, 22))
         self.save_button.clicked.connect(self.save)
 
