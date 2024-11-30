@@ -320,6 +320,11 @@ class MainWindow(QMainWindow):
         logger.info("Opening settings window.")
         self.root_stack.setCurrentIndex(1)
 
+    def changeEvent(self, event):
+        if self.settings.get("fullscreen", True):
+            if not self.isFullScreen():
+                self.showFullScreen()
+
 
 class SettingsPage(QWidget):
     rebuild = Signal()
