@@ -21,10 +21,9 @@ VERSION = "dev"
 class KioskBrowserSettings:
     """Manages the settings using QSettings."""
     DEFAULT_SETTINGS = {
-        "urls": [["https://example.com", "Example", "@pageicon"]],
+        "urls": [],
         "windowBranding": "Kiosk Browser",
-        "fullscreen": False,
-        "iconSize": 32,
+        "fullscreen": True,
     }
 
     @classmethod
@@ -241,7 +240,6 @@ class SettingsPage(QWidget):
         self.url_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
         self.url_table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectItems)
         self.url_table.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
-        self.url_table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         self._populate_url_table()
 
         self.add_url_button = QPushButton("Add URL")
@@ -316,6 +314,10 @@ class SettingsPage(QWidget):
     def _move_up(self):
         """Move the selected row up."""
         current_row = self.url_table.currentRow()
+
+        if current_row == -1:
+            return
+
         if current_row > 0:
             self._swap_rows(current_row, current_row - 1)
             self.url_table.selectRow(current_row - 1)
@@ -323,6 +325,10 @@ class SettingsPage(QWidget):
     def _move_down(self):
         """Move the selected row down."""
         current_row = self.url_table.currentRow()
+
+        if current_row == -1:
+            return
+
         if current_row < self.url_table.rowCount() - 1:
             self._swap_rows(current_row, current_row + 1)
             self.url_table.selectRow(current_row + 1)
@@ -359,7 +365,7 @@ class SettingsPage(QWidget):
 class URLConfigDialog(QDialog):
     """Dialog for adding or editing a URL entry."""
 
-    def __init__(self, url="", label="", icon=""):
+    def __init__(self, url="", label="", icon="@pageicon"):
         super().__init__()
         self.setWindowTitle("URL Configuration")
 
