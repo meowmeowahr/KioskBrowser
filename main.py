@@ -7,7 +7,7 @@ from typing import Dict, Any
 from PySide6.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QHBoxLayout, QGridLayout,
     QPushButton, QLabel, QLineEdit, QCheckBox, QStackedWidget, QSizePolicy, QTableWidget, QHeaderView, QTableWidgetItem,
-    QDialog, QMainWindow, QAbstractItemView
+    QDialog, QMainWindow, QAbstractItemView, QFileDialog, QGroupBox
 )
 from PySide6.QtCore import QUrl, QSize, Qt, QSettings, QThreadPool, QRunnable, Signal
 from PySide6.QtGui import QIcon, QKeySequence, QShortcut, QPixmap, QImage
@@ -133,6 +133,7 @@ class MainWindow(QMainWindow):
         self._setup_shortcuts()
         self._apply_styling()
 
+
     def exit_settings(self):
         self.root_stack.setCurrentIndex(0)
         self.settings_pane.save()
@@ -142,6 +143,7 @@ class MainWindow(QMainWindow):
             self.showFullScreen()
         else:
             self.showNormal()
+            self.show()
 
     def _setup_pages(self):
         # Clear existing pages and buttons
@@ -153,6 +155,31 @@ class MainWindow(QMainWindow):
             widget = self.pages_layout.itemAt(i).widget()
             self.pages_layout.removeWidget(widget)
             widget.deleteLater()
+
+        if len(self.settings["urls"]) == 0:
+            # no pages
+            button = QPushButton()
+            button.clicked.connect(lambda: self._switch_page(0))
+            button.setText("KioskBrowser")
+            button.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
+            button.setFocusPolicy(Qt.FocusPolicy.TabFocus)
+            button.setObjectName("WebTab")
+            self.pages_layout.addWidget(button)
+
+            no_page_widget = QWidget()
+            no_page_layout = QVBoxLayout(no_page_widget)
+
+            no_page_icon = QLabel()
+            no_page_icon.setPixmap(QPixmap("icon.png").scaled(512, 512, mode=Qt.TransformationMode.SmoothTransformation))
+            no_page_icon.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            no_page_layout.addWidget(no_page_icon)
+
+            no_page_text = QLabel("Welcome to KioskBrowser\nUse Alt+F1 to open settings and add pages")
+            no_page_text.setObjectName("NoPagesText")
+            no_page_text.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            no_page_layout.addWidget(no_page_text)
+
+            self.web_stack.addWidget(no_page_widget)
 
         # Create new pages and buttons
         for index, (url, label, icon_path) in enumerate(self.settings["urls"]):
@@ -365,27 +392,50 @@ class SettingsPage(QWidget):
 class URLConfigDialog(QDialog):
     """Dialog for adding or editing a URL entry."""
 
-    def __init__(self, url="", label="", icon="@pageicon"):
+    def __init__(self, url="", label="", icon=""):
         super().__init__()
         self.setWindowTitle("URL Configuration")
 
+        # Inputs for URL and Label
         self.url_input = QLineEdit(url)
         self.label_input = QLineEdit(label)
-        self.icon_input = QLineEdit(icon)
 
+        self.icon_group = QGroupBox("Icon Settings")
+
+        self.use_favicon_checkbox = QCheckBox("Use Webpage Favicon")
+        self.use_favicon_checkbox.setChecked(True)
+
+        self.icon_input = QLineEdit(icon)
+        self.icon_input.setEnabled(False)
+
+        self.icon_button = QPushButton("Select Icon")
+        self.icon_button.setEnabled(False)
+
+        self.use_favicon_checkbox.toggled.connect(self.toggle_icon_settings)
+        self.icon_button.clicked.connect(self.select_icon)
+
+        icon_layout = QHBoxLayout()
+        icon_layout.addWidget(self.icon_input)
+        icon_layout.addWidget(self.icon_button)
+
+        group_layout = QVBoxLayout()
+        group_layout.addWidget(self.use_favicon_checkbox)
+        group_layout.addLayout(icon_layout)
+        self.icon_group.setLayout(group_layout)
+
+        # OK and Cancel buttons
         self.ok_button = QPushButton("OK")
         self.ok_button.clicked.connect(self.accept)
-
         self.cancel_button = QPushButton("Cancel")
         self.cancel_button.clicked.connect(self.reject)
 
+        # Layout setup
         layout = QGridLayout()
         layout.addWidget(QLabel("URL:"), 0, 0)
         layout.addWidget(self.url_input, 0, 1)
         layout.addWidget(QLabel("Label:"), 1, 0)
         layout.addWidget(self.label_input, 1, 1)
-        layout.addWidget(QLabel("Icon:"), 2, 0)
-        layout.addWidget(self.icon_input, 2, 1)
+        layout.addWidget(self.icon_group, 2, 0, 1, 2)
         layout.addWidget(self.ok_button, 3, 0)
         layout.addWidget(self.cancel_button, 3, 1)
         self.setLayout(layout)
@@ -393,11 +443,31 @@ class URLConfigDialog(QDialog):
         self._apply_styling()
 
     def _apply_styling(self):
-        with open("style.qss", "r", encoding="utf-8") as f:
-            self.setStyleSheet(f.read())
+        try:
+            with open("style.qss", "r", encoding="utf-8") as f:
+                self.setStyleSheet(f.read())
+        except FileNotFoundError:
+            pass  # If style.qss is not found, skip applying styling
+
+    def toggle_icon_settings(self, checked):
+        """Enable or disable icon input and button based on the checkbox state."""
+        self.icon_input.setEnabled(not checked)
+        self.icon_button.setEnabled(not checked)
+
+    def select_icon(self):
+        """Open a file dialog to select an icon."""
+        icon_path, _ = QFileDialog.getOpenFileName(
+            self, "Select Icon", "",
+            "Image Files (*.svg *.png *.jpg *.jpeg *.bmp *.xbm)"
+        )
+        if icon_path:
+            self.icon_input.setText(icon_path)
 
     def get_data(self):
         """Retrieve the entered data."""
+        if self.use_favicon_checkbox.isChecked():
+            self.icon_input.setText("@pageicon")
+
         return self.url_input.text(), self.label_input.text(), self.icon_input.text()
 
 if __name__ == "__main__":
