@@ -127,6 +127,8 @@ class MainWindow(QMainWindow):
         logger.info(f"Storage path: {self.shared_profile.persistentStoragePath()}")
         logger.info(f"Cache path: {self.shared_profile.cachePath()}")
 
+        self.web_stack.setFocus()
+
         # Initial page setup
         self._setup_pages()
         self._setup_shortcuts()
@@ -156,6 +158,7 @@ class MainWindow(QMainWindow):
             button.setText(label)
             button.setIconSize(QSize(16, 16))
             button.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
+            button.setFocusPolicy(Qt.FocusPolicy.TabFocus)
             button.setObjectName("WebTab")
             self.pages_layout.addWidget(button)
             self._set_button_icon(button, label, icon_path)
