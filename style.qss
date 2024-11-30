@@ -38,10 +38,12 @@
 
 #NoPagesText {
     font-size: 28px;
+    color: #fff;
 }
 
 #ClockWidget {
     font-weight: bold;
+    color: #fff;
 }
 
 /* QPushButton Styles */
