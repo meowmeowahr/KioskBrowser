@@ -4,7 +4,8 @@
     color: #fff;
     font-size: 14px;
     font-weight: bold;
-    padding: 12px;
+    padding-top: 10px;
+    padding-bottom: 10px;
     text-align: center;
     width: 100%;
     border-radius: 2px;
@@ -12,23 +13,10 @@
 
 #WebTab:hover, #WebTab:focus {
     background-color: #333A3F;
-    color: #fff;
-    font-size: 14px;
-    font-weight: bold;
-    padding: 12px;
-    text-align: center;
-    width: 100%;
 }
 
 #WebTab:pressed{
     background-color: #434A4F;
-    border-bottom: 3px solid #efefef;
-    color: #fff;
-    font-size: 14px;
-    font-weight: bold;
-    padding: 12px;
-    text-align: center;
-    width: 100%;
 }
 
 #MainWindow > QWidget, QDialog {
