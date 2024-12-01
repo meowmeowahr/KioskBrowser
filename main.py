@@ -38,7 +38,7 @@ from PySide6.QtWebEngineCore import QWebEngineProfile, QWebEnginePage
 
 from qtawesome import icon as qta_icon
 
-from topbar import TopBarIconItem, get_battery, get_time_string, get_cpu
+from topbar import TopBarIconItem, get_battery, get_time_string, get_cpu, get_mem
 from settings import KioskBrowserSettings, SettingsPage
 
 VERSION = "1.0.0"
@@ -122,6 +122,11 @@ class MainWindow(QMainWindow):
         # Top Bar Items
         self.top_bar_layout.addStretch()
 
+        self.top_bar_mem = TopBarIconItem(*get_mem())
+        self.top_bar_mem.setObjectName("MemWidget")
+        self.top_bar_mem.setVisible(self.settings.get("topbar_mem", False))
+        self.top_bar_layout.addWidget(self.top_bar_mem)
+        
         self.top_bar_cpu = TopBarIconItem(*get_cpu())
         self.top_bar_cpu.setObjectName("CpuWidget")
         self.top_bar_cpu.setVisible(self.settings.get("topbar_cpu", False))
@@ -200,6 +205,7 @@ class MainWindow(QMainWindow):
         )
         self.top_bar_battery.modify(*get_battery())
         self.top_bar_cpu.modify(*get_cpu())
+        self.top_bar_mem.modify(*get_mem())
 
     def exit_settings(self):
         self.root_stack.setCurrentIndex(0)
@@ -293,6 +299,7 @@ class MainWindow(QMainWindow):
         self.top_bar_widget.setVisible(self.settings.get("topbar", True))
         self.top_bar_battery.setVisible(self.settings.get("topbar_battery", False))
         self.top_bar_cpu.setVisible(self.settings.get("topbar_cpu", False))
+        self.top_bar_mem.setVisible(self.settings.get("topbar_mem", False))
         self.pages_layout.setContentsMargins(
             3, 0 if self.settings.get("topbar", True) else 3, 3, 0
         )

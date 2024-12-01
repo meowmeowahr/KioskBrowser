@@ -35,6 +35,7 @@ class KioskBrowserSettings:
         "topbar_12hr": True,
         "topbar_battery": False,
         "topbar_cpu": False,
+        "topbar_mem": False,
         "topbar_update_speed": 1000,
     }
 
@@ -158,13 +159,17 @@ class SettingsPage(QWidget):
         self.topbar_cpu.setChecked(self.settings.get("topbar_cpu", False))
         self.topbar_layout.addWidget(self.topbar_cpu, 2, 0)
 
+        self.topbar_mem = QCheckBox("Memory Usage")
+        self.topbar_mem.setChecked(self.settings.get("topbar_mem", False))
+        self.topbar_layout.addWidget(self.topbar_mem, 3, 0)
+
         self.topbar_update = LabeledSpinBox("Top Bar Update Speed")
         self.topbar_update.setRange(500, 10000)
         self.topbar_update.setSingleStep(500)
         self.topbar_update.setSuffix("ms")
         self.topbar_update.spin_box.setMaximumWidth(240)
         self.topbar_update.setValue(self.settings.get("topbar_update_speed", 1000))
-        self.topbar_layout.addWidget(self.topbar_update, 0, 1)
+        self.topbar_layout.addWidget(self.topbar_update, 5, 0)
 
         # Save Button
         self.save_button = QPushButton("Save")
@@ -273,6 +278,7 @@ class SettingsPage(QWidget):
         self.settings["topbar_12hr"] = self.topbar_12hr.isChecked()
         self.settings["topbar_battery"] = self.topbar_battery.isChecked()
         self.settings["topbar_cpu"] = self.topbar_cpu.isChecked()
+        self.settings["topbar_mem"] = self.topbar_mem.isChecked()
         self.settings["topbar_update_speed"] = self.topbar_update.spin_box.value()
 
         # Save settings

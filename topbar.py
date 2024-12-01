@@ -3,7 +3,7 @@ from sys import maxsize
 
 from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QWidget, QHBoxLayout, QLabel
-from psutil import sensors_battery, cpu_percent
+from psutil import sensors_battery, cpu_percent, virtual_memory
 
 from qtawesome import icon as qta_icon
 
@@ -75,6 +75,9 @@ def get_cpu():
     return qta_icon(
         "mdi6.cpu-64-bit" if maxsize > 2**32 else "mdi6.cpu-32-bit"
     ), f"{round(cpu_percent())}%"
+
+def get_mem():
+    return qta_icon("mdi6.memory"), f"{round(virtual_memory().percent)}%"
 
 
 class TopBarIconItem(QWidget):
