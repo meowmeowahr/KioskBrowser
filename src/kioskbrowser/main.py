@@ -2,8 +2,6 @@ import os.path
 
 from loguru import logger
 import sys
-import requests
-import favicon
 
 from PySide6.QtWidgets import (
     QApplication,
@@ -20,8 +18,6 @@ from PySide6.QtCore import (
     QUrl,
     QSize,
     Qt,
-    QThreadPool,
-    QRunnable,
     QTimer,
     QFile,
     QIODevice,
@@ -48,37 +44,6 @@ from kioskbrowser.resources import qInitResources
 VERSION = "1.0.0"
 
 
-class IconFetchWorker(QRunnable):
-    """Worker to fetch the page icon asynchronously."""
-
-    def __init__(self, url: str, callback: callable):
-        super().__init__()
-        self.url = url
-        self.callback = callback  # Function to call when the icon is fetched
-
-    def run(self):
-        try:
-            # Fetch the favicon
-            icons = favicon.get(self.url)
-            if icons:
-                response = requests.get(icons[0].url, stream=True)
-                if response.status_code == 200:
-                    # Pass the icon data back to the callback
-                    self.callback(
-                        QIcon(
-                            QPixmap(QImage.fromData(response.content)).scaled(
-                                32, 32, mode=Qt.TransformationMode.SmoothTransformation
-                            )
-                        )
-                    )
-                    return
-        except Exception as e:
-            logger.warning(f"Failed to fetch page icon for {self.url}: {e}")
-
-        # If we fail to fetch the icon, call the callback with None
-        self.callback(None)
-
-
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
@@ -89,8 +54,6 @@ class MainWindow(QMainWindow):
         self.setWindowIcon(QIcon(":/images/icon.png"))
 
         self.set_fullscreen(self.settings.get("fullscreen", True))
-
-        self.thread_pool = QThreadPool()
 
         self.root_stack = QStackedWidget()
         self.setCentralWidget(self.root_stack)
@@ -260,19 +223,29 @@ class MainWindow(QMainWindow):
             button.clicked.connect(lambda _, idx=index: self._switch_page(idx))
             button.setText(label)
             button.setIconSize(QSize(16, 16))
-            button.setIcon(qta_icon("mdi6.web"))
             button.setSizePolicy(
                 QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred
             )
             button.setFocusPolicy(Qt.FocusPolicy.TabFocus)
             button.setObjectName("WebTab")
             self.pages_layout.addWidget(button)
-            self._set_button_icon(button, label, icon_path)
 
             # Set up the web engine page
             web_page = QWebEngineView()
             page = QWebEnginePage(self.shared_profile, web_page)
             web_page.setPage(page)
+
+            if icon_path == "@pageicon":
+                # using lambda to pass button to slot
+                page.iconChanged.connect(
+                    lambda icon, b=button, l=label: self._update_button_icon(b, icon, l)
+                )
+                button.setIcon(qta_icon("mdi6.web"))  # Default icon
+            elif os.path.exists(icon_path):
+                button.setIcon(QIcon(icon_path))
+            else:
+                button.setIcon(qta_icon("mdi6.web"))
+
             page.load(QUrl(url))
 
             # Add to the widget stack
@@ -296,30 +269,11 @@ class MainWindow(QMainWindow):
         )
         self._setup_pages()
 
-    def _set_button_icon(self, button: QPushButton, label: str, icon_path: str):
-        if icon_path == "@pageicon":
-            # Fetch icon asynchronously
-            url = self.settings["urls"][self.web_stack.count()][0]
-            self._fetch_icon_async(button, label, url)
-        elif os.path.exists(icon_path):
-            # Use a local icon directly
-            button.setIcon(QIcon(icon_path))
-        else:
-            button.setIcon(qta_icon("mdi6.web"))
-
-    def _fetch_icon_async(self, button: QPushButton, label: str, url: str):
-        def update_button_icon(ico: QIcon):
-            """Update the button with the fetched icon."""
-            if ico:
-                button.setIcon(ico)
-                logger.info(f"Fetched page icon for {label}")
-            else:
-                logger.warning(f"No icon available for {label}")
-                button.setIcon(qta_icon("mdi6.web"))
-
-        # Start the worker to fetch the icon
-        worker = IconFetchWorker(url, update_button_icon)
-        self.thread_pool.start(worker)
+    def _update_button_icon(self, button: QPushButton, icon: QIcon, label: str):
+        """Update button icon when page icon changes."""
+        if not icon.isNull():
+            button.setIcon(icon)
+            logger.info(f"Fetched page icon for {label}")
 
     def _switch_page(self, index: int):
         logger.debug(f"Switching to page {index}")
@@ -331,7 +285,7 @@ class MainWindow(QMainWindow):
     def _apply_styling(self):
         file = QFile(":/styles/style.qss")
         if file.open(QIODevice.OpenModeFlag.ReadOnly | QIODevice.OpenModeFlag.Text):
-            self.setStyleSheet(file.readAll().data().decode("utf-8"))
+            self.setStyleSheet(bytes(file.readAll().data()).decode("utf-8"))
             file.close()
 
     def _show_settings(self):
