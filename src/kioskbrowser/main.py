@@ -23,6 +23,8 @@ from PySide6.QtCore import (
     QThreadPool,
     QRunnable,
     QTimer,
+    QFile,
+    QIODevice,
 )
 from PySide6.QtGui import (
     QIcon,
@@ -38,23 +40,12 @@ from PySide6.QtWebEngineCore import QWebEngineProfile, QWebEnginePage
 
 from qtawesome import icon as qta_icon
 
-from topbar import TopBarIconItem, get_battery, get_time_string, get_cpu, get_mem
-from settings import KioskBrowserSettings, SettingsPage
+from kioskbrowser.topbar import TopBarIconItem, get_battery, get_time_string, get_cpu, get_mem
+from kioskbrowser.settings import KioskBrowserSettings, SettingsPage
+
+from kioskbrowser.resources import qInitResources
 
 VERSION = "1.0.0"
-
-
-def resource_path(relative_path) -> str | bytes:
-    """Get absolute path to resource, works for dev and PyInstaller"""
-    try:
-        # PyInstaller creates a temp folder and stores files there
-        # noinspection PyUnresolvedReferences
-        # noinspection PyProtectedMember
-        base_path = sys._MEIPASS
-    except AttributeError:
-        base_path = os.path.abspath(".")
-
-    return os.path.join(base_path, relative_path)
 
 
 class IconFetchWorker(QRunnable):
@@ -95,7 +86,7 @@ class MainWindow(QMainWindow):
 
         self.setObjectName("MainWindow")
         self.setWindowTitle(self.settings["windowBranding"])
-        self.setWindowIcon(QIcon(resource_path("icon.png")))
+        self.setWindowIcon(QIcon(":/images/icon.png"))
 
         self.set_fullscreen(self.settings.get("fullscreen", True))
 
@@ -126,7 +117,7 @@ class MainWindow(QMainWindow):
         self.top_bar_mem.setObjectName("MemWidget")
         self.top_bar_mem.setVisible(self.settings.get("topbar_mem", False))
         self.top_bar_layout.addWidget(self.top_bar_mem)
-        
+
         self.top_bar_cpu = TopBarIconItem(*get_cpu())
         self.top_bar_cpu.setObjectName("CpuWidget")
         self.top_bar_cpu.setVisible(self.settings.get("topbar_cpu", False))
@@ -247,7 +238,7 @@ class MainWindow(QMainWindow):
 
             no_page_icon = QLabel()
             no_page_icon.setPixmap(
-                QPixmap(resource_path("icon.png")).scaled(
+                QPixmap(":/images/icon.png").scaled(
                     512, 512, mode=Qt.TransformationMode.SmoothTransformation
                 )
             )
@@ -338,8 +329,10 @@ class MainWindow(QMainWindow):
         QShortcut(QKeySequence("Shift+F1"), self).activated.connect(self._show_settings)
 
     def _apply_styling(self):
-        with open(resource_path("style.qss"), "r", encoding="utf-8") as f:
-            self.setStyleSheet(f.read())
+        file = QFile(":/styles/style.qss")
+        if file.open(QIODevice.OpenModeFlag.ReadOnly | QIODevice.OpenModeFlag.Text):
+            self.setStyleSheet(file.readAll().data().decode("utf-8"))
+            file.close()
 
     def _show_settings(self):
         logger.info("Opening settings window.")
@@ -353,6 +346,7 @@ class MainWindow(QMainWindow):
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
+    qInitResources()
 
     palette = QPalette()
     palette.setColor(QPalette.ColorRole.Text, QColor(255, 255, 255))

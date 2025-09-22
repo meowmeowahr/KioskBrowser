@@ -1,0 +1,14 @@
+[project]
+name = "kioskbrowser"
+version = "1.0.0"
+description = "Simple Kiosk Browser"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+"requests~=2.32.3",
+"favicon~=0.7.0",
+"loguru~=0.7.2",
+"PySide6~=6.8.0.2",
+"QtAwesome~=1.3.1",
+"psutil~=6.1.0",
+]
