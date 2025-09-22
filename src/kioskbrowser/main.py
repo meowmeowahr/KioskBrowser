@@ -234,17 +234,10 @@ class MainWindow(QMainWindow):
             web_page = QWebEngineView()
             page = QWebEnginePage(self.shared_profile, web_page)
             web_page.setPage(page)
-
-            if icon_path == "@pageicon":
-                # using lambda to pass button to slot
-                page.iconChanged.connect(
-                    lambda icon, b=button, l=label: self._update_button_icon(b, icon, l)
-                )
-                button.setIcon(qta_icon("mdi6.web"))  # Default icon
-            elif os.path.exists(icon_path):
-                button.setIcon(QIcon(icon_path))
-            else:
-                button.setIcon(qta_icon("mdi6.web"))
+            page.iconChanged.connect(
+                lambda icon, b=button, l=label: self._update_button_icon(b, icon, l)
+            )
+            button.setIcon(qta_icon("mdi6.web"))  # Default icon
 
             page.load(QUrl(url))
 

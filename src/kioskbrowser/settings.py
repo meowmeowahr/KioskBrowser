@@ -100,8 +100,8 @@ class SettingsPage(QWidget):
 
         # URL Configuration Section
         self.url_label = QLabel("URL Config:")
-        self.url_table = QTableWidget(0, 3)  # 3 columns: URL, Label, Icon
-        self.url_table.setHorizontalHeaderLabels(["URL", "Label", "Icon"])
+        self.url_table = QTableWidget(0, 2)  # 2 columns: URL, Label
+        self.url_table.setHorizontalHeaderLabels(["URL", "Label"])
         self.url_table.horizontalHeader().setSectionResizeMode(
             QHeaderView.ResizeMode.Stretch
         )
@@ -198,7 +198,7 @@ class SettingsPage(QWidget):
     def _populate_url_table(self):
         """Populate the URL table with current settings."""
         self.url_table.setRowCount(0)
-        for url, label, icon in self.settings["urls"]:
+        for url, label, *_ in self.settings["urls"]: # *_ is kept for backward compatibility with >1.0.0
             row = self.url_table.rowCount()
             self.url_table.insertRow(row)
             self.url_table.setRowHeight(row, 48)
@@ -207,13 +207,12 @@ class SettingsPage(QWidget):
             )
             self.url_table.setItem(row, 0, QTableWidgetItem(url))
             self.url_table.setItem(row, 1, QTableWidgetItem(label))
-            self.url_table.setItem(row, 2, QTableWidgetItem(icon))
 
     def _add_url(self):
         """Add a new URL entry."""
         dialog = URLConfigDialog(self.window)
         if dialog.exec():
-            url, label, icon = dialog.get_data()
+            url, label = dialog.get_data()
             row = self.url_table.rowCount()
             self.url_table.insertRow(row)
             self.url_table.setRowHeight(row, 48)
@@ -222,7 +221,6 @@ class SettingsPage(QWidget):
             )
             self.url_table.setItem(row, 0, QTableWidgetItem(url))
             self.url_table.setItem(row, 1, QTableWidgetItem(label))
-            self.url_table.setItem(row, 2, QTableWidgetItem(icon))
 
     def _remove_selected_urls(self):
         """Remove selected URLs from the table."""
@@ -291,36 +289,13 @@ class SettingsPage(QWidget):
 class URLConfigDialog(QDialog):
     """Dialog for adding or editing a URL entry."""
 
-    def __init__(self, parent=None, url="", label="", icon=""):
+    def __init__(self, parent=None, url="", label=""):
         super().__init__(parent=parent)
         self.setWindowTitle("URL Configuration")
 
         # Inputs for URL and Label
         self.url_input = QLineEdit(url)
         self.label_input = QLineEdit(label)
-
-        self.icon_group = QGroupBox("Icon Settings")
-
-        self.use_favicon_checkbox = QCheckBox("Use Webpage Favicon")
-        self.use_favicon_checkbox.setChecked(True)
-
-        self.icon_input = QLineEdit(icon)
-        self.icon_input.setEnabled(False)
-
-        self.icon_button = QPushButton("Select Icon")
-        self.icon_button.setEnabled(False)
-
-        self.use_favicon_checkbox.toggled.connect(self.toggle_icon_settings)
-        self.icon_button.clicked.connect(self.select_icon)
-
-        icon_layout = QHBoxLayout()
-        icon_layout.addWidget(self.icon_input)
-        icon_layout.addWidget(self.icon_button)
-
-        group_layout = QVBoxLayout()
-        group_layout.addWidget(self.use_favicon_checkbox)
-        group_layout.addLayout(icon_layout)
-        self.icon_group.setLayout(group_layout)
 
         # OK and Cancel buttons
         self.ok_button = QPushButton("OK")
@@ -334,9 +309,8 @@ class URLConfigDialog(QDialog):
         layout.addWidget(self.url_input, 0, 1)
         layout.addWidget(QLabel("Label:"), 1, 0)
         layout.addWidget(self.label_input, 1, 1)
-        layout.addWidget(self.icon_group, 2, 0, 1, 2)
-        layout.addWidget(self.ok_button, 3, 0)
-        layout.addWidget(self.cancel_button, 3, 1)
+        layout.addWidget(self.ok_button, 2, 0)
+        layout.addWidget(self.cancel_button, 2, 1)
         self.setLayout(layout)
 
         self._apply_styling()
@@ -348,25 +322,6 @@ class URLConfigDialog(QDialog):
         except FileNotFoundError:
             pass  # If style.qss is not found, skip applying styling
 
-    def toggle_icon_settings(self, checked):
-        """Enable or disable icon input and button based on the checkbox state."""
-        self.icon_input.setEnabled(not checked)
-        self.icon_button.setEnabled(not checked)
-
-    def select_icon(self):
-        """Open a file dialog to select an icon."""
-        icon_path, _ = QFileDialog.getOpenFileName(
-            self,
-            "Select Icon",
-            "",
-            "Image Files (*.svg *.png *.jpg *.jpeg *.bmp *.xbm)",
-        )
-        if icon_path:
-            self.icon_input.setText(icon_path)
-
     def get_data(self):
         """Retrieve the entered data."""
-        if self.use_favicon_checkbox.isChecked():
-            self.icon_input.setText("@pageicon")
-
-        return self.url_input.text(), self.label_input.text(), self.icon_input.text()
+        return self.url_input.text(), self.label_input.text()
