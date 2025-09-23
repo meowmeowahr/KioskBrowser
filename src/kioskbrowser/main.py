@@ -1,6 +1,7 @@
 from loguru import logger
 import sys
 import os
+import platform
 
 from PySide6.QtWidgets import (
     QApplication,
