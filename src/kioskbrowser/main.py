@@ -31,8 +31,6 @@ from PySide6.QtGui import (
 from PySide6.QtWebEngineWidgets import QWebEngineView
 from PySide6.QtWebEngineCore import QWebEngineProfile, QWebEnginePage
 
-import platform
-
 from qtawesome import icon as qta_icon
 
 from kioskbrowser.topbar import TopBarIconItem, get_battery, get_time_string, get_cpu, get_mem
@@ -43,10 +41,6 @@ from kioskbrowser.lockdown import lockdown, unlock
 import atexit
 
 VERSION = "1.0.0"
-
-if platform.system() == "Windows":
-    import ctypes
-
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -303,7 +297,7 @@ if __name__ == "__main__":
     if settings.get("lockdown", False):
         logger.info("Applying lockdown settings.")
         lockdown(settings)
-        atexit.register(unlock)
+    atexit.register(unlock)
 
     palette = QPalette()
     palette.setColor(QPalette.ColorRole.Text, QColor(255, 255, 255))
