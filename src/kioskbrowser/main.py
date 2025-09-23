@@ -300,10 +300,11 @@ if __name__ == "__main__":
         lockdown(settings)
     atexit.register(unlock)
 
-    if not settings.get("linux_wayland_experimental", False):
-        os.environ["QT_QPA_PLATFORM"] = "xcb"
-    else:
-        logger.warning("Experimental Linux Wayland support enabled.")
+    if platform.system() == "Linux":
+        if not settings.get("linux_wayland_experimental", False):
+            os.environ["QT_QPA_PLATFORM"] = "xcb"
+        else:
+            logger.warning("Experimental Linux Wayland support enabled.")
 
 
     app = QApplication(sys.argv)
