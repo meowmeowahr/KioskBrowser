@@ -39,24 +39,13 @@ from kioskbrowser.topbar import TopBarIconItem, get_battery, get_time_string, ge
 from kioskbrowser.settings import KioskBrowserSettings, SettingsPage
 
 from kioskbrowser.resources import qInitResources
+from kioskbrowser.lockdown import lockdown, unlock
+import atexit
 
 VERSION = "1.0.0"
 
 if platform.system() == "Windows":
     import ctypes
-
-    SW_HIDE = 0
-    SW_SHOW = 5
-
-    FindWindow = ctypes.windll.user32.FindWindowW
-    ShowWindow = ctypes.windll.user32.ShowWindow
-
-    taskbar = FindWindow("Shell_TrayWnd", None)
-    Start = FindWindow("Button", None)
-
-    # Hide taskbar + start button
-    ShowWindow(taskbar, SW_HIDE)
-    ShowWindow(Start, SW_HIDE)
 
 
 class MainWindow(QMainWindow):
@@ -309,6 +298,12 @@ class MainWindow(QMainWindow):
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     qInitResources()
+
+    settings = KioskBrowserSettings.load_settings()
+    if settings.get("lockdown", False):
+        logger.info("Applying lockdown settings.")
+        lockdown(settings)
+        atexit.register(unlock)
 
     palette = QPalette()
     palette.setColor(QPalette.ColorRole.Text, QColor(255, 255, 255))

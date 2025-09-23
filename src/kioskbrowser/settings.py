@@ -20,6 +20,7 @@ from PySide6.QtWidgets import (
     QFileDialog,
 )
 from loguru import logger
+import platform
 
 from qtawesome import icon as qta_icon
 
@@ -37,6 +38,8 @@ class KioskBrowserSettings:
         "topbar_cpu": False,
         "topbar_mem": False,
         "topbar_update_speed": 1000,
+        "lockdown": False,
+        "lockdown_windows_hide_taskbar": False,
     }
 
     @classmethod
@@ -193,6 +196,22 @@ class SettingsPage(QWidget):
         layout.addWidget(self.window_branding_input)
         layout.addWidget(self.fullscreen_checkbox)
         layout.addWidget(self.topbar_group)
+
+        self.lockdown_group = QGroupBox("System Lockdown")
+        self.lockdown_group.setCheckable(True)
+        self.lockdown_group.setChecked(self.settings.get("lockdown", False))
+        self.lockdown_layout = QGridLayout()
+        self.lockdown_group.setLayout(self.lockdown_layout)
+        if platform.system() == "Windows":
+            self.lockdown_windows_hide_taskbar = QCheckBox("Hide Taskbar")
+            self.lockdown_windows_hide_taskbar.setChecked(
+                self.settings.get("lockdown_windows_hide_taskbar", False)
+            )
+            self.lockdown_layout.addWidget(self.lockdown_windows_hide_taskbar, 0, 0)
+        else:
+            self.lockdown_group.setVisible(False)
+        layout.addWidget(self.lockdown_group)
+
         layout.addWidget(self.save_button)
 
     def _populate_url_table(self):
@@ -265,8 +284,7 @@ class SettingsPage(QWidget):
         for row in range(self.url_table.rowCount()):
             url = self.url_table.item(row, 0).text()
             label = self.url_table.item(row, 1).text()
-            icon = self.url_table.item(row, 2).text()
-            urls.append([url, label, icon])
+            urls.append([url, label, "@pageicon"])
         self.settings["urls"] = urls
 
         # Update other settings
@@ -278,6 +296,13 @@ class SettingsPage(QWidget):
         self.settings["topbar_cpu"] = self.topbar_cpu.isChecked()
         self.settings["topbar_mem"] = self.topbar_mem.isChecked()
         self.settings["topbar_update_speed"] = self.topbar_update.spin_box.value()
+
+        # Update lockdown settings
+        self.settings["lockdown"] = self.lockdown_group.isChecked()
+        if platform.system() == "Windows":
+            self.settings[
+                "lockdown_windows_hide_taskbar"
+            ] = self.lockdown_windows_hide_taskbar.isChecked()
 
         # Save settings
         KioskBrowserSettings.save_settings(self.settings)
