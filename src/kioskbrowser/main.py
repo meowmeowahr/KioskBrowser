@@ -1,5 +1,6 @@
 from loguru import logger
 import sys
+import os
 
 from PySide6.QtWidgets import (
     QApplication,
@@ -50,6 +51,9 @@ class MainWindow(QMainWindow):
         self.setObjectName("MainWindow")
         self.setWindowTitle(self.settings["windowBranding"])
         self.setWindowIcon(QIcon(":/images/icon.png"))
+
+        if self.settings.get("lockdown_always_on_top", False):
+            self.setWindowFlags(Qt.WindowFlags.WindowStaysOnTopHint)
 
         self.set_fullscreen(self.settings.get("fullscreen", True))
 
@@ -290,14 +294,20 @@ class MainWindow(QMainWindow):
 
 
 if __name__ == "__main__":
-    app = QApplication(sys.argv)
-    qInitResources()
-
     settings = KioskBrowserSettings.load_settings()
     if settings.get("lockdown", False):
         logger.info("Applying lockdown settings.")
         lockdown(settings)
     atexit.register(unlock)
+
+    if not settings.get("linux_wayland_experimental", False):
+        os.environ["QT_QPA_PLATFORM"] = "xcb"
+    else:
+        logger.warning("Experimental Linux Wayland support enabled.")
+
+
+    app = QApplication(sys.argv)
+    qInitResources()
 
     palette = QPalette()
     palette.setColor(QPalette.ColorRole.Text, QColor(255, 255, 255))

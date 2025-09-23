@@ -39,7 +39,9 @@ class KioskBrowserSettings:
         "topbar_mem": False,
         "topbar_update_speed": 1000,
         "lockdown": False,
+        "lockdown_always_on_top": False,
         "lockdown_windows_hide_taskbar": False,
+        "linux_wayland_experimental": False,
     }
 
     @classmethod
@@ -174,45 +176,80 @@ class SettingsPage(QWidget):
         self.topbar_update.setValue(self.settings.get("topbar_update_speed", 1000))
         self.topbar_layout.addWidget(self.topbar_update, 5, 0)
 
+        # Lockdown Group
+        self.lockdown_group = QGroupBox("System Lockdown")
+        self.lockdown_group.setCheckable(True)
+        self.lockdown_group.setChecked(self.settings.get("lockdown", False))
+        self.lockdown_layout = QGridLayout()
+        self.lockdown_group.setLayout(self.lockdown_layout)
+        self.lockdown_notice = QLabel(
+            "Changes to lockdown settings require an application restart to take effect."
+        )
+        self.lockdown_layout.addWidget(self.lockdown_notice, 0, 0, 1, 2)
+
+        self.lockdown_items: list[QWidget] = []
+
+        self.lockdown_always_on_top = QCheckBox("Always on Top")
+        self.lockdown_always_on_top.setChecked(
+            self.settings.get("lockdown_always_on_top", False)
+        )
+        self.lockdown_items.append(self.lockdown_always_on_top)
+
+        if platform.system() == "Windows":
+            self.lockdown_windows_hide_taskbar = QCheckBox("Hide Taskbar")
+            self.lockdown_windows_hide_taskbar.setChecked(
+                self.settings.get("lockdown_windows_hide_taskbar", False)
+            )
+            self.lockdown_items.append(self.lockdown_windows_hide_taskbar)
+
+        for i, item in enumerate(self.lockdown_items):
+            self.lockdown_layout.addWidget(item, i // 2 + 1, i % 2)
+
+        self.linux_wayland_experimental = QCheckBox("Linux Wayland Experimental")
+        self.linux_wayland_experimental.setChecked(
+            self.settings.get("linux_wayland_experimental", False)
+        )
+        self.linux_wayland_experimental.setVisible(platform.system() == "Linux")
+
         # Save Button
         self.save_button = QPushButton("Save")
         self.save_button.setIcon(qta_icon("mdi6.content-save-cog"))
         self.save_button.setIconSize(QSize(22, 22))
         self.save_button.clicked.connect(self.save)
 
-        # Layout
-        layout = QVBoxLayout(self)
+        # #############
+        # Main Layout
+        # #############
+        main_layout = QHBoxLayout(self)
 
-        url_layout = QHBoxLayout()
-        url_layout.addWidget(self.add_url_button)
-        url_layout.addWidget(self.remove_url_button)
-        url_layout.addWidget(self.move_up_button)
-        url_layout.addWidget(self.move_down_button)
+        # Left column
+        left_column = QWidget()
+        left_layout = QVBoxLayout(left_column)
+        main_layout.addWidget(left_column)
 
-        layout.addWidget(self.url_label)
-        layout.addWidget(self.url_table)
-        layout.addLayout(url_layout)
-        layout.addWidget(self.window_branding_label)
-        layout.addWidget(self.window_branding_input)
-        layout.addWidget(self.fullscreen_checkbox)
-        layout.addWidget(self.topbar_group)
+        url_buttons_layout = QHBoxLayout()
+        url_buttons_layout.addWidget(self.add_url_button)
+        url_buttons_layout.addWidget(self.remove_url_button)
+        url_buttons_layout.addWidget(self.move_up_button)
+        url_buttons_layout.addWidget(self.move_down_button)
 
-        self.lockdown_group = QGroupBox("System Lockdown")
-        self.lockdown_group.setCheckable(True)
-        self.lockdown_group.setChecked(self.settings.get("lockdown", False))
-        self.lockdown_layout = QGridLayout()
-        self.lockdown_group.setLayout(self.lockdown_layout)
-        if platform.system() == "Windows":
-            self.lockdown_windows_hide_taskbar = QCheckBox("Hide Taskbar")
-            self.lockdown_windows_hide_taskbar.setChecked(
-                self.settings.get("lockdown_windows_hide_taskbar", False)
-            )
-            self.lockdown_layout.addWidget(self.lockdown_windows_hide_taskbar, 0, 0)
-        else:
-            self.lockdown_group.setVisible(False)
-        layout.addWidget(self.lockdown_group)
+        left_layout.addWidget(self.url_label)
+        left_layout.addWidget(self.url_table)
+        left_layout.addLayout(url_buttons_layout)
 
-        layout.addWidget(self.save_button)
+        # Right column
+        right_column = QWidget()
+        right_layout = QVBoxLayout(right_column)
+        main_layout.addWidget(right_column)
+
+        right_layout.addWidget(self.window_branding_label)
+        right_layout.addWidget(self.window_branding_input)
+        right_layout.addWidget(self.fullscreen_checkbox)
+        right_layout.addWidget(self.topbar_group)
+        right_layout.addWidget(self.lockdown_group)
+        right_layout.addWidget(self.linux_wayland_experimental)
+        right_layout.addStretch()
+        right_layout.addWidget(self.save_button)
 
     def _populate_url_table(self):
         """Populate the URL table with current settings."""
@@ -299,10 +336,13 @@ class SettingsPage(QWidget):
 
         # Update lockdown settings
         self.settings["lockdown"] = self.lockdown_group.isChecked()
+        self.settings["lockdown_always_on_top"] = self.lockdown_always_on_top.isChecked()
         if platform.system() == "Windows":
             self.settings[
                 "lockdown_windows_hide_taskbar"
             ] = self.lockdown_windows_hide_taskbar.isChecked()
+
+        self.settings["linux_wayland_experimental"] = self.linux_wayland_experimental.isChecked()
 
         # Save settings
         KioskBrowserSettings.save_settings(self.settings)
